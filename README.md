@@ -31,7 +31,7 @@ Refer the following code and paper:
 
 ## Instrumentation
 
-Performance proofs, including time complexity analysis, are dependent on what costs are being measured.
+Performance proofs, including time complexity analysis, are dependent on what costs are being measured:
 Comparisons? Arithmetic Operations? Memory Read and Writes? Each person can decide whatever they want.
 This can worsen the trustworthiness of each proof.
 To truly believe the proof is legitimate, we need to inspect how the code is written
@@ -64,3 +64,8 @@ Here, `#instrument` generates the followings:
 - the proof that the timed function returns the same value as the original function does
   (`linearSearch_timed_value`).
 
+## Target Programs
+
+We set here target programs for performance analysis.
+1. algorithms and data structures: this is the primary focus at the moment
+2. real-world programs: how do we ensure that an optimized program is really optimized? this is the next goal.
