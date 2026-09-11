@@ -26,7 +26,7 @@ Here, we refer to a program that returns `α ✕ Nat` as 'timed' program.
 
 This method is widely used in other projects too.
 Refer the following code and paper:
-- https://github.com/leanprover/cslib/blob/main/Cslib/Algorithms/Lean/TimeM.lean
+- [Time Monad Definition in the CSLib](https://github.com/leanprover/cslib/blob/main/Cslib/Algorithms/Lean/TimeM.lean)
 - [Lightweight semiformal time complexity analysis for purely functional data structures (Danielsson, 2008)](https://dl.acm.org/doi/10.1145/1328897.1328457)
 
 ## Instrumentation
@@ -40,7 +40,7 @@ and what costs are measured.
 To alleviate this burden, we offer an instrumentation tool
 that automatically converts a function into a 'timed' function.
 The instrumentation ensures that the timed function to increase
-the tick for every comparisons, arithmetic operations, and memory operations.
+the tick for every comparison, arithmetic operation, and memory operation.
 
 If you find this tool limited for the program of your interest,
 you can send a PR to improve the instrumentation.
@@ -67,5 +67,5 @@ Here, `#instrument` generates the followings:
 ## Target Programs
 
 We set here target programs for performance analysis.
-1. algorithms and data structures: this is the primary focus at the moment
+1. algorithms and data structures: this is the primary focus at the moment,
 2. real-world programs: how do we ensure that an optimized program is really optimized? this is the next goal.
