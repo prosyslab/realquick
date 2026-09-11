@@ -67,5 +67,5 @@ Here, `#instrument` generates the followings:
 ## Target Programs
 
 We set here target programs for performance analysis.
-1. algorithms and data structures: this is the primary focus at the moment,
-2. real-world programs: how do we ensure that an optimized program is really optimized? this is the next goal.
+1. **algorithms and data structures**: this is the primary focus at the moment,
+2. **real-world programs**: how do we ensure that an optimized program is really optimized? this is the next goal.
