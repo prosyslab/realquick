@@ -76,6 +76,16 @@ decreasing_by
 
 -- #instrument mergeSort as mergeSort_timed
 
--- theorem mergeSort_correct : Correct mergeSort := by sorry
+theorem mergeSort_correct_sorted (xs : List Int) :
+  Sorted (mergeSort xs) := by sorry
+
+theorem mergeSort_correct_perm (xs : List Int) :
+  (mergeSort xs).Perm xs := by sorry
+
+theorem mergeSort_correct : Correct mergeSort := by
+  intro xs
+  constructor
+  · exact mergeSort_correct_sorted xs
+  · exact mergeSort_correct_perm xs
 
 end Algorithms.MergeSort.Impl
