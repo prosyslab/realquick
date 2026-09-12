@@ -1,71 +1,51 @@
+import RealQuick.TimeM
+import RealQuick.Instrumentation
+
+import Algorithms.MergeSort.Correctness
+open Algorithms.MergeSort.Correctness
+
 namespace Algorithms.MergeSort.Impl
 
-def splitAlt : Bool → List Int → (List Int × List Int)
-  | _, [] => ([], [])
-  | alt, x :: xs =>
-    let s := splitAlt (!alt) xs
-    if alt then (x :: s.1, s.2)
-    else (s.1, x :: s.2)
+def split : List Int → (List Int × List Int)
+  | [] => ([], [])
+  | [x] => ([x], [])
+  | x :: y :: xs =>
+    let s := split xs
+    (x :: s.1, y :: s.2)
 
-#eval splitAlt false [1,2,3,4]
+#eval split [1,2,3,4]
 
-/-- The length difference of `splitAlt`-returned lists is bounded by 1 -/
-private theorem splitAlt_balanced_oriented (xs : List Int) :
-  ∀ b,
-    let (s1, s2) := splitAlt b xs
-    if b then s2.length ≤ s1.length ∧ s1.length ≤ s2.length + 1
-    else s1.length ≤ s2.length ∧ s2.length ≤ s1.length + 1 := by
-  induction xs with
-  | nil =>
-    intro b
-    simp [splitAlt]
-  | cons hd tl ih =>
-    intro b
-    cases b with
-    | false =>
-      simp [splitAlt]
-      have h := ih true
-      simp at h
-      omega
-    | true =>
-      simp [splitAlt]
-      have h := ih false
-      simp at h
-      omega
+/-- `split` returns lists whose lengths differ by at most one. -/
+theorem split_balanced (xs : List Int) :
+  let (s1, s2) := split xs
+  s1.length - s2.length ≤ 1 ∧ s2.length - s1.length ≤ 1 := by
+  match xs with
+  | [] => simp [split]
+  | [x] => simp [split]
+  | x :: y :: xs =>
+    simp [split]
+    have ih := split_balanced xs
+    simp at ih
+    omega
 
-/-- `splitAlt` always returns two lists of balanced-lengths -/
-theorem splitAlt_balanced (xs : List Int) :
-  ∀ (b : Bool),
-    let (s1, s2) := splitAlt b xs
-    s1.length - s2.length ≤ 1 ∧ s2.length - s1.length ≤ 1 := by
-  intro b
-  simp
-  have h := splitAlt_balanced_oriented xs b
-  cases b <;> simp at h <;> omega
-
-theorem splitAlt_preserves_length (b : Bool) (xs : List Int) :
-  let (s1, s2) := splitAlt b xs
+theorem split_preserves_length (xs : List Int) :
+  let (s1, s2) := split xs
   s1.length + s2.length = xs.length := by
-  induction xs generalizing b with
-  | nil =>
-    simp [splitAlt]
-  | cons x xs ih =>
-    cases b with
-    | false =>
-      simp [splitAlt]
-      have h := ih true
-      omega
-    | true =>
-      simp [splitAlt]
-      have h := ih false
-      omega
+  match xs with
+  | [] => simp [split]
+  | [x] => simp [split]
+  | x :: y :: xs =>
+    simp [split]
+    have ih := split_preserves_length xs
+    simp at ih
+    omega
 
-private theorem splitAlt_lt_length_of_length_ge_two
-    (b : Bool) (xs : List Int) (hxs : 2 ≤ xs.length) :
-    (splitAlt b xs).1.length < xs.length ∧
-      (splitAlt b xs).2.length < xs.length := by
-  have hsum := splitAlt_preserves_length b xs
-  have hbalanced := splitAlt_balanced xs b
+private theorem split_lt_length_of_length_ge_two
+    (xs : List Int) (hxs : 2 ≤ xs.length) :
+    (split xs).1.length < xs.length ∧
+      (split xs).2.length < xs.length := by
+  have hsum := split_preserves_length xs
+  have hbalanced := split_balanced xs
   dsimp at hbalanced
   omega
 
@@ -80,7 +60,7 @@ def mergeSort : List Int → List Int
   | [] => []
   | [x] => [x]
   | x :: y :: xs =>
-    match h : splitAlt true (x :: y :: xs) with
+    match h : split (x :: y :: xs) with
     | (a, b) =>
       let a' := mergeSort a
       let b' := mergeSort b
@@ -88,8 +68,14 @@ def mergeSort : List Int → List Int
 termination_by xs => xs.length
 decreasing_by
   all_goals
-    have hlt := splitAlt_lt_length_of_length_ge_two true (x :: y ::xs) (by simp)
+    have hlt := split_lt_length_of_length_ge_two (x :: y :: xs) (by simp)
     rw [h] at hlt
     first | exact hlt.1 | exact hlt.2
+
+#eval mergeSort [1,4,2,9,8]
+
+-- #instrument mergeSort as mergeSort_timed
+
+-- theorem mergeSort_correct : Correct mergeSort := by sorry
 
 end Algorithms.MergeSort.Impl
