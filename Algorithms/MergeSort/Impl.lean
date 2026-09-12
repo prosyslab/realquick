@@ -76,11 +76,88 @@ decreasing_by
 
 -- #instrument mergeSort as mergeSort_timed
 
+private theorem split_perm (xs : List Int) :
+    ((split xs).1 ++ (split xs).2).Perm xs := by
+  match xs with
+  | [] => simp [split]
+  | [x] => simp [split]
+  | x :: y :: xs =>
+    simpa only [split, List.cons_append] using
+      (List.perm_middle.cons x).trans ((split_perm xs).cons y |>.cons x)
+
+private theorem merge_perm (xs ys : List Int) :
+    (merge xs ys).Perm (xs ++ ys) := by
+  match xs, ys with
+  | [], ys => simp [merge]
+  | x :: xs, [] => simp [merge]
+  | x :: xs, y :: ys =>
+    by_cases h : x ≤ y
+    · simpa [merge, h] using (merge_perm xs (y :: ys)).cons x
+    · simpa [merge, h] using
+        ((merge_perm (x :: xs) ys).cons y).trans List.perm_middle.symm
+
+private theorem merge_sorted (xs ys : List Int)
+    (hxs : Sorted xs) (hys : Sorted ys) : Sorted (merge xs ys) := by
+  match xs, ys with
+  | [], ys => simpa [merge] using hys
+  | x :: xs, [] => simpa [merge] using hxs
+  | x :: xs, y :: ys =>
+    obtain ⟨hx, hxs⟩ := List.pairwise_cons.mp hxs
+    obtain ⟨hy, hys⟩ := List.pairwise_cons.mp hys
+    by_cases h : x ≤ y
+    · simp only [merge, h, ↓reduceIte, Sorted, List.pairwise_cons]
+      constructor
+      · intro z hz
+        have hz := (merge_perm xs (y :: ys)).mem_iff.mp hz
+        simp only [List.mem_append, List.mem_cons] at hz
+        rcases hz with hz | rfl | hz
+        · exact hx z hz
+        · exact h
+        · exact Int.le_trans h (hy z hz)
+      · exact merge_sorted xs (y :: ys) hxs (List.pairwise_cons.mpr ⟨hy, hys⟩)
+    · simp only [merge, h, ↓reduceIte, Sorted, List.pairwise_cons]
+      constructor
+      · intro z hz
+        have hz := (merge_perm (x :: xs) ys).mem_iff.mp hz
+        simp only [List.mem_append, List.mem_cons] at hz
+        rcases hz with (rfl | hz) | hz
+        · omega
+        · exact Int.le_trans (by omega : y ≤ x) (hx z hz)
+        · exact hy z hz
+      · exact merge_sorted (x :: xs) ys (List.pairwise_cons.mpr ⟨hx, hxs⟩) hys
+
 theorem mergeSort_correct_sorted (xs : List Int) :
-  Sorted (mergeSort xs) := by sorry
+  Sorted (mergeSort xs) := by
+  match xs with
+  | [] => simp [mergeSort, Sorted]
+  | [x] => simp [mergeSort, Sorted]
+  | x :: y :: xs =>
+    rw [mergeSort]
+    exact merge_sorted _ _
+      (mergeSort_correct_sorted (split (x :: y :: xs)).1)
+      (mergeSort_correct_sorted (split (x :: y :: xs)).2)
+termination_by xs.length
+decreasing_by
+  all_goals
+    have hlt := split_lt_length_of_length_ge_two (x :: y :: xs) (by simp)
+    first | exact hlt.1 | exact hlt.2
 
 theorem mergeSort_correct_perm (xs : List Int) :
-  (mergeSort xs).Perm xs := by sorry
+  (mergeSort xs).Perm xs := by
+  match xs with
+  | [] => simp [mergeSort]
+  | [x] => simp [mergeSort]
+  | x :: y :: xs =>
+    rw [mergeSort]
+    exact (merge_perm _ _).trans
+      (((mergeSort_correct_perm (split (x :: y :: xs)).1).append
+        (mergeSort_correct_perm (split (x :: y :: xs)).2)).trans
+        (split_perm (x :: y :: xs)))
+termination_by xs.length
+decreasing_by
+  all_goals
+    have hlt := split_lt_length_of_length_ge_two (x :: y :: xs) (by simp)
+    first | exact hlt.1 | exact hlt.2
 
 theorem mergeSort_correct : Correct mergeSort := by
   intro xs
