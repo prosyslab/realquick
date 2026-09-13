@@ -76,16 +76,23 @@ decreasing_by
 
 -- #instrument mergeSort as mergeSort_timed
 
-private theorem split_perm (xs : List Int) :
+/-- split preserves the elements: the output is a permutation of the input -/
+theorem split_perm (xs : List Int) :
     ((split xs).1 ++ (split xs).2).Perm xs := by
   match xs with
   | [] => simp [split]
   | [x] => simp [split]
   | x :: y :: xs =>
+    -- splitting x :: y :: xs gives (x :: fst, y :: snd)
+    -- therefore, we show: x :: fst ++ y :: snd.
+    -- More specifically, x :: (fst ++ y :: snd).
+    -- We use the fact that x :: (fst ++ y :: snd)
+    --                      ~ x :: y :: (fst ++ snd)
+    --                      ~ x :: y :: xs
     simpa only [split, List.cons_append] using
       (List.perm_middle.cons x).trans ((split_perm xs).cons y |>.cons x)
 
-private theorem merge_perm (xs ys : List Int) :
+theorem merge_perm (xs ys : List Int) :
     (merge xs ys).Perm (xs ++ ys) := by
   match xs, ys with
   | [], ys => simp [merge]
