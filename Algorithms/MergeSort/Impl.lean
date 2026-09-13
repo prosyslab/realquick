@@ -92,79 +92,115 @@ theorem split_perm (xs : List Int) :
     -- s.fst ++ s.snd ~ xs (this is the IH)
     exact ih.cons y
 
+/-- `merge` preserves permutation relation -/
 theorem merge_perm (xs ys : List Int) :
     (merge xs ys).Perm (xs ++ ys) := by
-  match xs, ys with
-  | [], ys => simp [merge]
-  | x :: xs, [] => simp [merge]
-  | x :: xs, y :: ys =>
-    by_cases h : x ≤ y
-    · simpa [merge, h] using (merge_perm xs (y :: ys)).cons x
-    · simpa [merge, h] using
-        ((merge_perm (x :: xs) ys).cons y).trans List.perm_middle.symm
+  fun_induction merge xs ys with
+  | case1 => rfl
+  | case2 => simp
+  | case3 x xs y ys h ih =>
+    apply List.Perm.cons
+    simpa
+  | case4 x xs y ys h ih =>
+    have ih_y := ih.cons y
+    apply ih_y.trans
+    exact List.perm_middle.symm
 
-private theorem merge_sorted (xs ys : List Int)
+/-- `merge` preserves sortedness -/
+theorem merge_sorted (xs ys : List Int)
     (hxs : Sorted xs) (hys : Sorted ys) : Sorted (merge xs ys) := by
-  match xs, ys with
-  | [], ys => simpa [merge] using hys
-  | x :: xs, [] => simpa [merge] using hxs
-  | x :: xs, y :: ys =>
-    obtain ⟨hx, hxs⟩ := List.pairwise_cons.mp hxs
-    obtain ⟨hy, hys⟩ := List.pairwise_cons.mp hys
-    by_cases h : x ≤ y
-    · simp only [merge, h, ↓reduceIte, Sorted, List.pairwise_cons]
-      constructor
-      · intro z hz
-        have hz := (merge_perm xs (y :: ys)).mem_iff.mp hz
-        simp only [List.mem_append, List.mem_cons] at hz
-        rcases hz with hz | rfl | hz
-        · exact hx z hz
-        · exact h
-        · exact Int.le_trans h (hy z hz)
-      · exact merge_sorted xs (y :: ys) hxs (List.pairwise_cons.mpr ⟨hy, hys⟩)
-    · simp only [merge, h, ↓reduceIte, Sorted, List.pairwise_cons]
-      constructor
-      · intro z hz
-        have hz := (merge_perm (x :: xs) ys).mem_iff.mp hz
-        simp only [List.mem_append, List.mem_cons] at hz
-        rcases hz with (rfl | hz) | hz
-        · omega
-        · exact Int.le_trans (by omega : y ≤ x) (hx z hz)
-        · exact hy z hz
-      · exact merge_sorted (x :: xs) ys (List.pairwise_cons.mpr ⟨hx, hxs⟩) hys
+  revert hxs hys
+  fun_induction merge xs ys with
+  | case1 =>
+    intro _ hys
+    exact hys
+  | case2 =>
+    intro hxs _
+    exact hxs
+  | case3 x xs y ys h ih =>
+    intro hxs hys
+    -- ih : Sorted xs → Sorted (y :: ys) → Sorted (merge xs (y :: ys))
+
+    -- From Sorted (x :: xs), we know `x` is the least element of `x :: xs`,
+    -- and `xs` is sorted.
+    obtain ⟨hx, hxs_sorted⟩ := List.pairwise_cons.mp hxs
+    -- From Sorted (y :: ys), we know `y` is the least element of `y :: ys`,
+    -- and `ys` is sorted.
+    obtain ⟨hy, hys_sorted⟩ := List.pairwise_cons.mp hys
+
+    have htail : Sorted (merge xs (y :: ys)) := ih hxs_sorted hys
+
+    -- From the fact that `y` is the least element of `y :: ys` and `h : x ≤ y`,
+    -- we deduce that `x` is smaller than `y :: ys`.
+    have hx_le_y_ys : ∀ y' ∈ y :: ys, x ≤ y' := by
+      intro y' hy'
+      rcases List.mem_cons.mp hy' with rfl | hy'
+      · exact h
+      · have h1 := hy y' hy'
+        exact Int.le_trans h h1
+
+    -- From that `x` is the less than any of `xs` and `y :: ys`,
+    -- we can say `x` is the least of `merge xs (y :: ys)`.
+    have hx_le_merge_xs_y_ys : ∀ z ∈ merge xs (y :: ys), x ≤ z := by
+      intro z hz
+      have hz := (merge_perm xs (y :: ys)).mem_iff.mp hz
+      rcases List.mem_append.mp hz with hz | hz
+      · exact hx z hz
+      · exact hx_le_y_ys z hz
+    
+    -- Then we know
+    -- (1) x is the least element of `xs` and `y :: ys`.
+    -- (2) The main goal is `Sorted (x :: merge xs (y :: ys))`
+    -- (3) Then we can reduce the goal to `Sorted (merge xs (y :: ys))`
+    exact List.pairwise_cons.mpr ⟨hx_le_merge_xs_y_ys, htail⟩ 
+  | case4 x xs y ys h ih =>
+    intro hxs hys
+    -- ih : Sorted (x :: xs) → Sorted ys → Sorted (merge (x :: xs) ys)
+    obtain ⟨hx, hxs_sorted⟩ := List.pairwise_cons.mp hxs
+    obtain ⟨hy, hys_sorted⟩ := List.pairwise_cons.mp hys
+    have htail := ih hxs hys_sorted
+    have hy_lt_x_xs : ∀ z ∈ x :: xs, y < z := by
+      intro z hz
+      rcases List.mem_cons.mp hz with rfl | hz
+      · omega -- automatically use ¬(x ≤ y)
+      · have hx_le_z := hx z hz
+        omega -- automatically use ¬(x ≤ y) and x ≤ z ⇒ y < z
+
+    -- Every element of the merged tail comes from `x :: xs` or `ys`,
+    -- and `y` is at most every element of either input.
+    have hy_le_merge_x_xs_ys : ∀ z ∈ merge (x :: xs) ys, y ≤ z := by
+      intro z hz
+      have hz := (merge_perm (x :: xs) ys).mem_iff.mp hz
+      rcases List.mem_append.mp hz with hz | hz
+      · exact Int.le_of_lt (hy_lt_x_xs z hz)
+      · exact hy z hz
+
+    exact List.pairwise_cons.mpr ⟨hy_le_merge_x_xs_ys, htail⟩
+
 
 theorem mergeSort_correct_sorted (xs : List Int) :
   Sorted (mergeSort xs) := by
-  match xs with
-  | [] => simp [mergeSort, Sorted]
-  | [x] => simp [mergeSort, Sorted]
-  | x :: y :: xs =>
-    rw [mergeSort]
-    exact merge_sorted _ _
-      (mergeSort_correct_sorted (split (x :: y :: xs)).1)
-      (mergeSort_correct_sorted (split (x :: y :: xs)).2)
-termination_by xs.length
-decreasing_by
-  all_goals
-    have hlt := split_lt_length_of_length_ge_two (x :: y :: xs) (by simp)
-    first | exact hlt.1 | exact hlt.2
+  fun_induction mergeSort xs with
+  | case1 => simp [Sorted]
+  | case2 x => simp [Sorted]
+  | case3 x y xs a b h a' b' ih_a ih_b =>
+    -- The induction hypotheses say that both recursively sorted halves are sorted.
+    exact merge_sorted a' b' ih_a ih_b
 
 theorem mergeSort_correct_perm (xs : List Int) :
   (mergeSort xs).Perm xs := by
-  match xs with
-  | [] => simp [mergeSort]
-  | [x] => simp [mergeSort]
-  | x :: y :: xs =>
-    rw [mergeSort]
-    exact (merge_perm _ _).trans
-      (((mergeSort_correct_perm (split (x :: y :: xs)).1).append
-        (mergeSort_correct_perm (split (x :: y :: xs)).2)).trans
-        (split_perm (x :: y :: xs)))
-termination_by xs.length
-decreasing_by
-  all_goals
-    have hlt := split_lt_length_of_length_ge_two (x :: y :: xs) (by simp)
-    first | exact hlt.1 | exact hlt.2
+  fun_induction mergeSort xs with
+  | case1 => rfl
+  | case2 x => rfl
+  | case3 x y xs a b h a' b' ih_a ih_b =>
+    -- Merging preserves the elements of the two recursively sorted halves.
+    apply (merge_perm a' b').trans
+    -- The induction hypotheses recover the original halves.
+    apply (ih_a.append ih_b).trans
+    -- Splitting preserved the elements of the original input.
+    have hsplit := split_perm (x :: y :: xs)
+    rw [h] at hsplit
+    exact hsplit
 
 theorem mergeSort_correct : Correct mergeSort := by
   intro xs
