@@ -79,18 +79,18 @@ decreasing_by
 /-- split preserves the elements: the output is a permutation of the input -/
 theorem split_perm (xs : List Int) :
     ((split xs).1 ++ (split xs).2).Perm xs := by
-  match xs with
-  | [] => simp [split]
-  | [x] => simp [split]
-  | x :: y :: xs =>
-    -- splitting x :: y :: xs gives (x :: fst, y :: snd)
-    -- therefore, we show: x :: fst ++ y :: snd.
-    -- More specifically, x :: (fst ++ y :: snd).
-    -- We use the fact that x :: (fst ++ y :: snd)
-    --                      ~ x :: y :: (fst ++ snd)
-    --                      ~ x :: y :: xs
-    simpa only [split, List.cons_append] using
-      (List.perm_middle.cons x).trans ((split_perm xs).cons y |>.cons x)
+  fun_induction split xs with
+  | case1 => rfl
+  | case2 x => rfl
+  | case3 x y xs s ih =>
+    -- ih : ((split xs).1 ++ (split xs).2).Perm xs
+    simp
+    have h : (s.fst ++ y :: s.snd).Perm (y :: s.fst ++ s.snd) := by
+      exact List.perm_middle
+    -- (y :: s.fst ++ s.snd) ~ (y :: xs)
+    apply h.trans
+    -- s.fst ++ s.snd ~ xs (this is the IH)
+    exact ih.cons y
 
 theorem merge_perm (xs ys : List Int) :
     (merge xs ys).Perm (xs ++ ys) := by
