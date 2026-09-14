@@ -4,6 +4,8 @@ import RealQuick.Instrumentation
 import Algorithms.MergeSort.Correctness
 open Algorithms.MergeSort.Correctness
 
+open RealQuick.TimeM
+
 namespace Algorithms.MergeSort.Impl
 
 def split : List Int → (List Int × List Int)
@@ -74,7 +76,9 @@ decreasing_by
 
 #eval mergeSort [1,4,2,9,8]
 
--- #instrument mergeSort as mergeSort_timed
+#instrument split as split_timed
+#instrument merge as merge_timed
+#instrument mergeSort as mergeSort_timed
 
 /-- split preserves the elements: the output is a permutation of the input -/
 theorem split_perm (xs : List Int) :
@@ -208,4 +212,24 @@ theorem mergeSort_correct : Correct mergeSort := by
   · exact mergeSort_correct_sorted xs
   · exact mergeSort_correct_perm xs
 
+#eval split_timed [] -- 0 => 5
+#eval split_timed [1] -- 1 => 6 (+1)
+#eval split_timed [1,2] -- 2 => 12 (+6)
+#eval split_timed [1,2,3] -- 3 => 13 (+1)
+#eval split_timed [1,2,3,4] -- 4 ==> 19 (+6)
+#eval split_timed [1,2,3,4,5] -- 4 ==> 20 (+1)
+
+theorem split_timed_linear (xs : List Int) :
+  TimeM.cost (split_timed xs) ≤ 4 * xs.length + 5 := by
+  fun_induction split xs with
+  | case1 =>
+    change 5 ≤ 5
+    omega
+  | case2 =>
+    change 6 ≤ 9
+    omega
+  | case3 x y xs s ih =>
+    -- Note: split (x :: y :: xs) = (x :: (split xs).1, y :: (split xs).2)
+    change (split_timed xs).cost + 7 ≤ 4 * xs.length + 13
+    omega
 end Algorithms.MergeSort.Impl
