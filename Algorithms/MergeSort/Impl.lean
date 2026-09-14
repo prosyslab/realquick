@@ -232,4 +232,49 @@ theorem split_timed_linear (xs : List Int) :
     -- Note: split (x :: y :: xs) = (x :: (split xs).1, y :: (split xs).2)
     change (split_timed xs).cost + 7 ≤ 4 * xs.length + 13
     omega
+
+#eval merge_timed [] [] -- T(0, 0) = 2
+#eval merge_timed [1] [] -- T(1, 0) = 2
+#eval merge_timed [1] [2] -- T(1, 1) = 8
+#eval merge_timed [1,3] [2] -- T(2, 1) = 14 = T(1, 1) + 6
+#eval merge_timed [1] [2,3] -- T(1, 2) = 8
+#eval merge_timed [1,3] [2,4] -- T(2, 2) = 20 = T(2, 1) + 6
+#eval merge_timed [5,6] [1,2,3]
+
+#check merge_timed_certified
+
+/- NOTE: TimeM instrumentation is leaking abstractions. I had to manually unfold low-level
+   instrumentation internals: WellFounded.fix, seqEq, TimeM.tick, ...
+   we must provide a cleaner layer so that users can focus on algebraic inequalities ..
+   we could extend the instrumention to generate useful cost lemmas to skip those parts,
+   and make a dedicated tactic.
+-/
+theorem merge_timed_linear (xs ys : List Int) :
+  TimeM.cost (merge_timed xs ys) ≤ 6 * (xs.length + ys.length) + 2 := by
+  fun_induction merge xs ys with
+  | case1 ys =>
+    rw [merge_timed_eq_def]
+    simp [TimeM.step, TimeM.done, TimeM.cost]
+    change 2 ≤ 6 * ys.length + 2
+    omega
+  | case2 xs =>
+    rw [merge_timed_eq_def]
+    simp [TimeM.step, TimeM.done, TimeM.cost]
+    change 2 ≤ 6 * xs.length + 2
+    omega
+  | case3 x xs y ys h ih =>
+    rw [merge_timed_eq_def]
+    simp [RealQuick.Instrumentation.intLe, decide_eq_true h]
+    simp [RealQuick.Instrumentation.WF.seqEq, TimeM.step, bind]
+    simp only [List.length_cons] at ih ⊢
+    dsimp [merge_timed, TimeM.cost] at ih
+    omega
+  | case4 x xs y ys h ih =>
+    rw [merge_timed_eq_def]
+    simp [RealQuick.Instrumentation.intLe, decide_eq_false h]
+    simp [RealQuick.Instrumentation.WF.seqEq, TimeM.step, bind]
+    simp only [List.length_cons] at ih ⊢
+    dsimp [merge_timed, TimeM.cost] at ih
+    omega
+
 end Algorithms.MergeSort.Impl
