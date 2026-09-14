@@ -277,4 +277,27 @@ theorem merge_timed_linear (xs ys : List Int) :
     dsimp [merge_timed, TimeM.cost] at ih
     omega
 
+#eval mergeSort_timed [] -- 3
+#eval mergeSort_timed [1] -- 4
+#eval mergeSort_timed [2,1] -- 33
+#eval mergeSort_timed [3,2,1] -- 69
+
+theorem mergeSort_length (xs : List Int) : (mergeSort xs).length = xs.length :=
+  (mergeSort_correct_perm xs).length_eq
+
+theorem mergeSort_timed_step (x y : Int) (xs : List Int) (a b : List Int)
+  (h : split (x :: y :: xs) = (a, b)) :
+  (mergeSort_timed (x :: y :: xs)).cost ≤
+    (split_timed (x :: y :: xs)).cost +
+    (mergeSort_timed a).cost +
+    (mergeSort_timed b).cost +
+    (merge_timed (mergeSort a) (mergeSort b)).cost + 15 := by
+  rw [mergeSort_timed_eq_def]
+  have hcert (l : List Int) : (mergeSort_timed_certified l).1 = mergeSort_timed l := rfl
+  simp [RealQuick.Instrumentation.WF.seqEq, TimeM.step, bind, hcert ?_]
+  have hsplit_val : (split_timed (x :: y :: xs)).fst = (a, b) := by
+    simp [split_timed_value, h]
+  rw [hsplit_val]
+  dsimp only [Prod.fst, Prod.snd]
+  omega
 end Algorithms.MergeSort.Impl
