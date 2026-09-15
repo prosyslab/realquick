@@ -396,8 +396,13 @@ private theorem balanced_halves_nlogn (a b n : Nat)
 theorem mergeSort_timed_nlogn (l : List Int) :
   TimeM.cost (mergeSort_timed l) ≤ 50 * l.length * (Nat.log2 l.length + 1) + 4 := by
   fun_induction mergeSort l with
-  | case1 => simp; decide
-  | case2 x => simp; change 4 ≤ 54; omega
+  | case1 =>
+    simp only [TimeM.cost, List.length_nil, mul_zero, Nat.log2_zero, zero_add, mul_one]
+    decide
+  | case2 x =>
+    simp only [TimeM.cost, List.length_cons, List.length_nil, zero_add, mul_one]
+    change 4 ≤ 54
+    omega
   | case3 x y xs a b h a' b' ih_a ih_b =>
     have hlengths := split_lengths (x :: y :: xs) a b h
     have hn : 2 ≤ (x :: y :: xs).length := by simp
