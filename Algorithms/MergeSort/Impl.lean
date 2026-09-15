@@ -1,5 +1,7 @@
 import RealQuick.TimeM
 import RealQuick.Instrumentation
+import Mathlib.Data.Nat.Log
+import Mathlib.Tactic.Ring
 
 import Algorithms.MergeSort.Correctness
 open Algorithms.MergeSort.Correctness
@@ -42,13 +44,26 @@ theorem split_preserves_length (xs : List Int) :
     simp at ih
     omega
 
-private theorem split_lt_length_of_length_ge_two
-    (xs : List Int) (hxs : 2 ≤ xs.length) :
-    (split xs).1.length < xs.length ∧
-      (split xs).2.length < xs.length := by
-  have hsum := split_preserves_length xs
-  have hbalanced := split_balanced xs
-  dsimp at hbalanced
+/-- `split` produces two list of length ⌈n/2⌉ and ⌊n/2⌋ -/
+theorem split_lengths (xs : List Int) (a b : List Int) (h : split xs = (a, b)) :
+    a.length = (xs.length + 1) / 2 ∧ b.length = xs.length / 2 := by
+  fun_induction split xs generalizing a b with
+  | case1 => rcases h; decide
+  | case2 x => rcases h; simp
+  | case3 x y xs s ih =>
+    rcases h
+    subst s
+    have h_ih := ih (split xs).1 (split xs).2 rfl
+    simp only [List.length_cons]
+    omega
+
+theorem split_reduces_length
+    (x y : Int) (xs : List Int)
+    (h : split (x :: y :: xs) = (a, b)) :
+    a.length < (x :: y :: xs).length ∧ b.length < (x :: y :: xs).length := by
+  have hsum := split_preserves_length (x :: y :: xs)
+  have hbalanced := split_balanced (x :: y :: xs)
+  simp [h] at hsum hbalanced ⊢
   omega
 
 def merge : List Int → List Int → List Int
@@ -70,8 +85,7 @@ def mergeSort : List Int → List Int
 termination_by xs => xs.length
 decreasing_by
   all_goals
-    have hlt := split_lt_length_of_length_ge_two (x :: y :: xs) (by simp)
-    rw [h] at hlt
+    have hlt := split_reduces_length x y xs h
     first | exact hlt.1 | exact hlt.2
 
 #eval mergeSort [1,4,2,9,8]
@@ -131,9 +145,7 @@ theorem merge_sorted (xs ys : List Int)
     -- From Sorted (y :: ys), we know `y` is the least element of `y :: ys`,
     -- and `ys` is sorted.
     obtain ⟨hy, hys_sorted⟩ := List.pairwise_cons.mp hys
-
     have htail : Sorted (merge xs (y :: ys)) := ih hxs_sorted hys
-
     -- From the fact that `y` is the least element of `y :: ys` and `h : x ≤ y`,
     -- we deduce that `x` is smaller than `y :: ys`.
     have hx_le_y_ys : ∀ y' ∈ y :: ys, x ≤ y' := by
@@ -142,7 +154,6 @@ theorem merge_sorted (xs ys : List Int)
       · exact h
       · have h1 := hy y' hy'
         exact Int.le_trans h h1
-
     -- From that `x` is the less than any of `xs` and `y :: ys`,
     -- we can say `x` is the least of `merge xs (y :: ys)`.
     have hx_le_merge_xs_y_ys : ∀ z ∈ merge xs (y :: ys), x ≤ z := by
@@ -178,7 +189,6 @@ theorem merge_sorted (xs ys : List Int)
       rcases List.mem_append.mp hz with hz | hz
       · exact Int.le_of_lt (hy_lt_x_xs z hz)
       · exact hy z hz
-
     exact List.pairwise_cons.mpr ⟨hy_le_merge_x_xs_ys, htail⟩
 
 
@@ -264,7 +274,7 @@ theorem merge_timed_linear (xs ys : List Int) :
     omega
   | case3 x xs y ys h ih =>
     rw [merge_timed_eq_def]
-    simp [RealQuick.Instrumentation.intLe, decide_eq_true h]
+    simp [RealQuick.Instrumentation.intLe, decide_eq_true h] -- TODO: clean up
     simp [RealQuick.Instrumentation.WF.seqEq, TimeM.step, bind]
     simp only [List.length_cons] at ih ⊢
     dsimp [merge_timed, TimeM.cost] at ih
@@ -277,27 +287,133 @@ theorem merge_timed_linear (xs ys : List Int) :
     dsimp [merge_timed, TimeM.cost] at ih
     omega
 
+
+theorem List.length_mergeSort (xs : List Int) : (mergeSort xs).length = xs.length :=
+  (mergeSort_correct_perm xs).length_eq
+
+/-- The time taken for mergeSort is bounded by
+    the sum of split time, merge time, and two mergeSort times. -/
+theorem mergeSort_timed_step (x y : Int) (xs : List Int) (a b : List Int)
+  (h : split (x :: y :: xs) = (a, b)) :
+  (mergeSort_timed (x :: y :: xs)).cost ≤
+    (split_timed (x :: y :: xs)).cost +
+    (mergeSort_timed a).cost + (mergeSort_timed b).cost +
+    (merge_timed (mergeSort a) (mergeSort b)).cost + 5 := by
+  rw [mergeSort_timed_eq_def]
+  have hcert (l : List Int) : (mergeSort_timed_certified l).1 = mergeSort_timed l := rfl
+  simp [RealQuick.Instrumentation.WF.seqEq, TimeM.step, TimeM.done, bind, hcert ?_]
+  -- TODO: tidier way to prove this ...
+  have hsplit_val : (split_timed (x :: y :: xs)).fst = (a, b) := by
+    simp [split_timed_value, h]  
+  rw [hsplit_val]
+  dsimp [Prod.fst, Prod.snd]
+  -- The main goal still has (mergeSort_timed a).fst.
+  -- `omega` can't reason that it is equal to (mergeSort a),
+  have hmergeSort_val : ∀ a, (mergeSort_timed a).1 = mergeSort a := by
+    simp [mergeSort_timed_value]
+  
+  simp [hmergeSort_val a, hmergeSort_val b]
+  omega
+
+/-- We show the amount of work in one mergeSort level is linear -/
+theorem mergeSort_timed_recurrence
+  (x y : Int) (xs : List Int) (a b : List Int) (h : split (x :: y :: xs) = (a, b)) :
+  (mergeSort_timed (x :: y :: xs)).cost ≤
+    (mergeSort_timed a).cost + (mergeSort_timed b).cost +
+    10 * (x :: y :: xs).length + 12 := by
+  have hstep := mergeSort_timed_step x y xs a b h
+  have hsplit := split_timed_linear (x :: y :: xs)
+  have hmerge := merge_timed_linear (mergeSort a) (mergeSort b)
+  rw [List.length_mergeSort a, List.length_mergeSort b] at hmerge
+  have hsum : a.length + b.length = (x :: y :: xs).length := by
+    simpa [h] using split_preserves_length (x :: y :: xs)
+  omega
+
+-- A merge-sort call does linear work, then recurses on the two halves.
+-- The logarithmic budget below accounts for repeatedly halving the input.
+
+/-- The recursive calls have enough logarithmic slack to pay for one floor
+    half of the input. -/
+private theorem balanced_halves_core (a b n : Nat)
+    (ha : a = (n + 1) / 2) (hb : b = n / 2) (hn : 2 ≤ n) :
+    a * (a.log2 + 1) + b * (b.log2 + 1) + b ≤
+      n * (n.log2 + 1) := by
+  subst a
+  subst b
+  have hleft_log : ((n + 1) / 2).log2 ≤ n.log2 := by
+    rw [Nat.log2_eq_log_two, Nat.log2_eq_log_two]
+    apply Nat.log_mono_right
+    omega
+  have hright_log : (n / 2).log2 + 1 = n.log2 := by
+    have hlog : (n / 2).log2 = n.log2 - 1 := by
+      simp only [Nat.log2_eq_log_two]
+      exact Nat.log_div_base 2 n
+    have hlog_pos : 1 ≤ n.log2 := by
+      rw [Nat.log2_eq_log_two]
+      exact Nat.log_pos (by omega) hn
+    rw [hlog, Nat.sub_add_cancel hlog_pos]
+  have hleft :
+      (n + 1) / 2 * (((n + 1) / 2).log2 + 1) ≤
+        (n + 1) / 2 * (n.log2 + 1) :=
+    Nat.mul_le_mul_left _ (Nat.succ_le_succ hleft_log)
+  have hsum : (n + 1) / 2 + n / 2 = n := by omega
+  calc
+    (n + 1) / 2 * (((n + 1) / 2).log2 + 1) +
+          n / 2 * ((n / 2).log2 + 1) + n / 2
+      ≤ (n + 1) / 2 * (n.log2 + 1) + n / 2 * n.log2 + n / 2 := by
+        rw [hright_log]
+        simpa only [Nat.add_assoc] using
+          Nat.add_le_add_right hleft (n / 2 * n.log2 + n / 2)
+    _ = n * (n.log2 + 1) := by
+      calc
+        (n + 1) / 2 * (n.log2 + 1) + n / 2 * n.log2 + n / 2 =
+            ((n + 1) / 2 + n / 2) * (n.log2 + 1) := by ring
+        _ = n * (n.log2 + 1) := by rw [hsum]
+
+/-- One merge-sort level: the balanced recursive work plus its affine overhead
+    fits in the `n * log2 n` budget. -/
+private theorem balanced_halves_nlogn (a b n : Nat)
+    (ha : a = (n + 1) / 2) (hb : b = n / 2) (hn : 2 ≤ n) :
+    50 * a * (a.log2 + 1) + 50 * b * (b.log2 + 1) + 10 * n + 16 ≤
+      50 * n * (n.log2 + 1) := by
+  have hcore := balanced_halves_core a b n ha hb hn
+  have hwork : 10 * n + 16 ≤ 50 * b := by
+    rw [hb]
+    omega
+  calc
+    50 * a * (a.log2 + 1) + 50 * b * (b.log2 + 1) + 10 * n + 16
+      ≤ 50 * a * (a.log2 + 1) + 50 * b * (b.log2 + 1) + 50 * b :=
+        Nat.add_le_add_left hwork _
+    _ = 50 * (a * (a.log2 + 1) + b * (b.log2 + 1) + b) := by ring
+    _ ≤ 50 * (n * (n.log2 + 1)) := Nat.mul_le_mul_left 50 hcore
+    _ = 50 * n * (n.log2 + 1) := by ring
+
 #eval mergeSort_timed [] -- 3
 #eval mergeSort_timed [1] -- 4
 #eval mergeSort_timed [2,1] -- 33
 #eval mergeSort_timed [3,2,1] -- 69
 
-theorem mergeSort_length (xs : List Int) : (mergeSort xs).length = xs.length :=
-  (mergeSort_correct_perm xs).length_eq
+theorem mergeSort_timed_nlogn (l : List Int) :
+  TimeM.cost (mergeSort_timed l) ≤ 50 * l.length * (Nat.log2 l.length + 1) + 4 := by
+  fun_induction mergeSort l with
+  | case1 => simp; decide
+  | case2 x => simp; change 4 ≤ 54; omega
+  | case3 x y xs a b h a' b' ih_a ih_b =>
+    have hlengths := split_lengths (x :: y :: xs) a b h
+    have hn : 2 ≤ (x :: y :: xs).length := by simp
+    have hrecurrence := mergeSort_timed_recurrence x y xs a b h
+    calc
+      TimeM.cost (mergeSort_timed (x :: y :: xs))
+        ≤ TimeM.cost (mergeSort_timed a) + TimeM.cost (mergeSort_timed b) +
+            10 * (x :: y :: xs).length + 12 := hrecurrence
+      _ ≤ 50 * a.length * (a.length.log2 + 1) +
+            50 * b.length * (b.length.log2 + 1) +
+            10 * (x :: y :: xs).length + 20 := by omega
+      _ ≤ 50 * (x :: y :: xs).length * ((x :: y :: xs).length.log2 + 1) + 4 := by
+        have hbalanced := balanced_halves_nlogn a.length b.length
+          (x :: y :: xs).length hlengths.1 hlengths.2 hn
+        omega
+    
+    
 
-theorem mergeSort_timed_step (x y : Int) (xs : List Int) (a b : List Int)
-  (h : split (x :: y :: xs) = (a, b)) :
-  (mergeSort_timed (x :: y :: xs)).cost ≤
-    (split_timed (x :: y :: xs)).cost +
-    (mergeSort_timed a).cost +
-    (mergeSort_timed b).cost +
-    (merge_timed (mergeSort a) (mergeSort b)).cost + 15 := by
-  rw [mergeSort_timed_eq_def]
-  have hcert (l : List Int) : (mergeSort_timed_certified l).1 = mergeSort_timed l := rfl
-  simp [RealQuick.Instrumentation.WF.seqEq, TimeM.step, bind, hcert ?_]
-  have hsplit_val : (split_timed (x :: y :: xs)).fst = (a, b) := by
-    simp [split_timed_value, h]
-  rw [hsplit_val]
-  dsimp only [Prod.fst, Prod.snd]
-  omega
 end Algorithms.MergeSort.Impl
