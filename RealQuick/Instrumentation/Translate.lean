@@ -14,6 +14,25 @@ namespace RealQuick.Instrumentation
 def ret (e : Expr) : MetaM Expr := mkAppM ``TimeM.done #[e]
 def step (e : Expr) : MetaM Expr := mkAppM ``TimeM.step #[e]
 
+structure FnAppView where
+  expr: Expr
+  fn: Expr
+  args: Array Expr
+  name?: Option Name
+  levels : List Level
+
+namespace FnAppView
+
+def fromExpr (e : Expr) : FnAppView :=
+  let fn := e.getAppFn
+  let args := e.getAppArgs
+  match fn with
+  | .const name levels =>
+    ⟨e, fn, args, name, levels⟩
+  | _ => ⟨e, fn, args, none, []⟩
+
+end FnAppView
+
 /-- Avoid introducing aliases for already evaluated values (important for termination). -/
 private def sequence (comp : Expr) (k : Expr → MetaM Expr) : MetaM Expr := do
   if comp.isAppOfArity ``TimeM.done 2 then
@@ -227,8 +246,9 @@ mutual
 
   private partial def translateApp (ctx : Ctx) (e : Expr) : MetaM Expr := do
     firstOrderResult (← inferType e)
-    let fn := e.getAppFn
-    let args := e.getAppArgs
+    let app := FnAppView.fromExpr e
+    let fn := app.fn
+    let args := app.args
     if let some wf := ctx.wf? then
       if let some (_, timed) := wf.recs.find? (fun (original, _) => original == fn) then
         unless args.size == 2 do throwError "partially applied recursive callback is unsupported"
@@ -236,8 +256,9 @@ mutual
           let expected := (← inferType (mkApp timed value)).bindingDomain!
           let proof ← adaptProof ctx args[1]! expected
           pure (mkProj ``Subtype 0 (mkApp2 timed value proof))
-    let .const name levels := fn
+    let some name := app.name?
       | throwError "higher-order calls are unsupported:{indentExpr e}"
+    let levels := app.levels
     if name == ctx.source then
       return ← arguments ctx fn args fun args => pure (mkAppN ctx.self args)
     if let some timed := Registry.timedForSource? (← getEnv) name then
@@ -388,7 +409,7 @@ mutual
   private partial def translatePacked (ctx : Ctx) (e : Expr) (arity : Nat) : MetaM Expr := do
     if arity ≤ 1 then return ← translate ctx e
     unless e.isAppOfArity ``PSigma.mk 4 do throwError "unsupported packed recursive argument"
-    let args := e.getAppArgs
+    let args := (FnAppView.fromExpr e).args
     sequenceWith ctx (← translate ctx args[2]!) fun first => do
       sequenceWith ctx (← translatePacked ctx args[3]! (arity - 1)) fun rest =>
         ret (mkAppN e.getAppFn #[args[0]!, args[1]!, first, rest])
