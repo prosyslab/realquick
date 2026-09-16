@@ -2,14 +2,21 @@ import Lean
 import Lean.Compiler.LCNF.ToDecl
 
 import RealQuick.TimeM
+import RealQuick.Instrumentation.Registry
+import RealQuick.Instrumentation.CostModel
 
 open RealQuick.TimeM
 
 /-!
-# First-order instrumentation
+# TimeM instrumentation
 
-`#instrument f as f_timed` translates a pure definition into `TimeM`, and generates
-`f_timed_value : ∀ args, TimeM.value (f_timed args) = f args`.
+`#instrument f as f_timed` translates a pure definition into `TimeM`.
+This also generates `f_timed_value : ∀ args, TimeM.value (f_timed args) = f args`.
+For well-founded recursion, `f_eq_def` is also generated.
+
+This module follows the fail-fast policy. If the instrumentation fails,
+it should abort, not silently producing zero-cost function.
+
 
 The fixed abstract model charges one tick per function entry, primitive operation,
 constructor application, projection, and branch selection, except the linear
@@ -20,7 +27,7 @@ only the selected branch runs. This is not a wall-clock or bit-complexity model.
 This initial, fail-closed frontend supports nondependent first-order code in `Type`,
 structural recursion on direct nonindexed inductives (including Nat/List/trees),
 structures/projections, Nat/Int/Bool primitives,
-and selected array operations, plus an explicit logarithmic model for `Nat.log2`.
+and selected array operations, with `Nat.log2` treated as a unit-cost primitive.
 Conditionals require canonical Bool or Nat/Int comparison decision procedures.
 Dependent conditionals, higher-order iteration,
 and general well-founded recursion remain unsupported.
@@ -32,8 +39,8 @@ persistent-array copying: this is not a model of shared-buffer runtime execution
 Allocation and list/array conversion cost one plus the allocated/input size;
 `push` conservatively charges one plus the old size for possible reallocation.
 In particular replicate is linear, including when its result is unused.
-`Nat.log2` costs `5 * Nat.log2 n + 3`, including entry, using its abstract
-repeated-halving recurrence (not its internal recursor or foreign implementation).
+`Nat.log2` is a unit-cost primitive, like the approved Nat arithmetic operations;
+this is not a model of its internal recursor, foreign implementation, or bit complexity.
 It supports both direct instrumentation and calls without prior registration.
 Recursive helpers outside the approved models must first be instrumented explicitly;
 nonrecursive helpers are inlined after evaluating their arguments. Unsupported constructs are rejected rather
@@ -43,7 +50,7 @@ The `Type` restriction follows the existing `TimeM.step`/`TimeM.value` API; this
 module does not change that API. Value preservation is kernel checked (the generated
 statement uses the definitionally equal `.1` projection). Cost adequacy still trusts
 this translator, Lean's elaboration machinery, and the primitive policy below.
-Strict gating of the legacy `#analyze` command and a formal cost-adequacy theorem are
+nStrict gating of the legacy `#analyze` command and a formal cost-adequacy theorem are
 separate milestones, not provided by this module.
 -/
 
@@ -104,58 +111,7 @@ end RealQuick.Instrumentation.WF
 
 namespace RealQuick.Instrumentation
 
-variable {α β : Type}
-
-
-private structure Entry where
-  source : Name
-  timed : Name
-  valueTheorem : Name
-  deriving Inhabited
-
-private structure Registry where
-  sources : NameMap Entry := {}
-  timed : NameMap Name := {}
-  deriving Inhabited
-
-private def Registry.insert (s : Registry) (e : Entry) : Registry :=
-  { sources := s.sources.insert e.source e, timed := s.timed.insert e.timed e.source }
-
-private initialize registry : SimplePersistentEnvExtension Entry Registry ←
-  registerSimplePersistentEnvExtension {
-    addEntryFn := Registry.insert
-    addImportedFn := fun es => es.foldl (fun s entries =>
-      entries.foldl Registry.insert s) {}
-  }
-
-/-- Look up the original source of a registered timed declaration (including imports).
-Earlier timed versions remain registered when a source is instrumented again. -/
-def instrumentedSource? (env : Environment) (timed : Name) : Option Name :=
-  (registry.getState env).timed.find? timed
-
-/-- Charge a size-dependent primitive without traversing its result again. -/
-def charge (cost : Nat) (value : α) : TimeM α := (value, cost)
-
-@[simp] theorem fst_charge (cost : Nat) (value : α) : (charge cost value).1 = value := rfl
-@[simp] theorem snd_charge (cost : Nat) (value : α) : (charge cost value).2 = cost := rfl
-
-/-- Approved abstract model for `Nat.log2`, rather than translation of its internal
-higher-order `Nat.rec` or a claim about its foreign runtime implementation.
-The repeated-halving equation `Nat.log2_def` costs three ticks at the base case
-(entry, comparison, branch) and five per recursive level (also division and
-successor). Thus the total is `5 * Nat.log2 n + 3`, including function entry.
-As with division, arithmetic is unit-cost, not bit complexity. -/
-def natLog2 (n : Nat) : TimeM Nat := charge (5 * Nat.log2 n + 3) (Nat.log2 n)
-
-@[simp] theorem fst_natLog2 (n : Nat) : (natLog2 n).1 = Nat.log2 n := rfl
-@[simp] theorem snd_natLog2 (n : Nat) : (natLog2 n).2 = 5 * Nat.log2 n + 3 := rfl
-
-/-- The closed-form charge agrees with the repeated-halving cost recurrence. -/
-theorem natLog2_cost_eq (n : Nat) :
-    (natLog2 n).2 = if 2 ≤ n then (natLog2 (n / 2)).2 + 5 else 3 := by
-  simp only [snd_natLog2]
-  rw [Nat.log2_def n]
-  split <;> omega
+variable {α : Type}
 
 /-- Closed wrappers keep approved instances from being re-synthesized under a
 caller's local instances when generated terms are delaborated and elaborated. -/
@@ -286,15 +242,23 @@ private structure Ctx where
   unfolded : IO.Ref NameSet
   wf? : Option WFCtx := none
 
-/-- These implementations, not arbitrary instances of the same operation, are approved.
-Nat/Int arithmetic, including division, is unit-cost (not bit complexity). -/
-private def primitive (n : Name) : Bool :=
-  [``Nat.add, ``Nat.sub, ``Nat.mul, ``Nat.div, ``Nat.mod, ``Nat.beq, ``Nat.ble,
-   ``Int.add, ``Int.sub, ``Int.mul, ``Int.ediv, ``Int.emod, ``Int.neg,
-   ``Int.natAbs, ``Int.toNat,
-   ``Array.size, ``Array.getInternal, ``Array.getD,
-   ``Array.set, ``Array.set!, ``Array.setIfInBounds, ``Array.pop,
-   ``Bool.not, ``Bool.and, ``Bool.or].contains n
+/-- The input whose size determines an array allocation/conversion charge. -/
+private inductive LinearArrayMeasure where
+  | capacity
+  | listLength
+  | arraySize
+
+/-- Recognize supported linear-cost array operations and the input that determines
+that operation's allocation/conversion charge. -/
+private def linearArrayMeasure? (name : Name) : Option LinearArrayMeasure :=
+  if [``Array.replicate, ``Array.emptyWithCapacity].contains name then
+    some .capacity
+  else if name == ``Array.mk then
+    some .listLength
+  else if [``Array.toList, ``Array.push].contains name then
+    some .arraySize
+  else
+    none
 
 /-- Direct nonindexed inductives have ordinary constant-cost branch selection.
 Array's logical constructor exposes a list conversion, so it is deliberately
@@ -337,8 +301,8 @@ private def wfSimpContext (ctx : Ctx) : MetaM Simp.Context := do
       ``nat_beq_value, ``int_neg_value, ``intEq, ``natEq, ``intLe, ``natLe,
       ``intLt, ``natLt, ``arrayRead?] do
     thms ← if ← isProp (← getConstInfo name).type then thms.addConst name (post := false) else thms.addDeclToUnfold name
-  for (_, entry) in (registry.getState (← getEnv)).sources.toArray do
-    thms ← thms.addConst entry.valueTheorem (post := false)
+  for theoremName in Registry.valueTheorems (← getEnv) do
+    thms ← thms.addConst theoremName (post := false)
   for name in (← ctx.unfolded.get).toArray do
     thms ← thms.addDeclToUnfold name
   return ← Simp.mkContext (config := { zetaDelta := true, failIfUnchanged := false }) (simpTheorems := #[thms])
@@ -503,10 +467,8 @@ mutual
       | throwError "higher-order calls are unsupported:{indentExpr e}"
     if name == ctx.source then
       return ← arguments ctx fn args fun args => pure (mkAppN ctx.self args)
-    if let some entry := (registry.getState (← getEnv)).sources.find? name then
-      return ← arguments ctx fn args fun args => pure (mkAppN (mkConst entry.timed levels) args)
-    if name == ``Nat.log2 then
-      return ← arguments ctx fn args fun values => mkAppM ``natLog2 values
+    if let some timed := Registry.timedForSource? (← getEnv) name then
+      return ← arguments ctx fn args fun args => pure (mkAppN (mkConst timed levels) args)
     if let some matcher ← matchMatcherApp? e (alsoCasesOn := ctx.wf?.isSome) then
       -- A nested pattern can expose Array.toList even when its outer
       -- discriminant is an ordinary structure/tree. Such conversion must not
@@ -558,30 +520,31 @@ mutual
         step (← mkAppM ``cond #[b, yes, no])
     -- Allocation/conversion is linear. Push conservatively includes reallocation;
     -- writes/pop above are abstract RAM primitives under exclusive ownership.
-    if [``Array.replicate, ``Array.emptyWithCapacity, ``Array.mk, ``Array.toList,
-        ``Array.push].contains name then
+    if let some measure := linearArrayMeasure? name then
       return ← arguments ctx fn args fun values => do
-        let size ← if name == ``Array.replicate || name == ``Array.emptyWithCapacity then
-            pure values[1]!
-          else if name == ``Array.mk then mkAppM ``List.length #[values[1]!]
-          else mkAppM ``Array.size #[values[1]!]
+        let size ← match measure with
+          | .capacity => pure values[1]!
+          | .listLength => mkAppM ``List.length #[values[1]!]
+          | .arraySize => mkAppM ``Array.size #[values[1]!]
         mkAppM ``charge #[← mkAppM ``Nat.succ #[size], mkAppN fn values]
-    if [``GetElem.getElem, ``GetElem?.getElem?].contains name then
-      unless args.size == (if name == ``GetElem.getElem then 8 else 7) &&
+    if name == ``GetElem.getElem || name == ``GetElem?.getElem? then
+      let required := name == ``GetElem.getElem
+      unless args.size == (if required then 8 else 7) &&
           args[0]!.isAppOfArity ``Array 1 && args[1]!.isConstOf ``Nat do
         throwError "only canonical Nat-indexed array reads are supported"
-      let instName := if name == ``GetElem.getElem then
+      let instName := if required then
         ``Array.instGetElemNatLtSize else ``Array.instGetElem?NatLtSize
       let expected := mkApp (mkConst instName [levels[0]!]) args[2]!
       unless args[4]! == expected do
         throwError "custom array access instances are unsupported"
       -- The validity predicate is erased; the instance has just been checked.
       return ← arguments ctx (mkAppN fn (args.extract 0 5)) (args.extract 5 args.size) fun values => do
-        if name == ``GetElem.getElem then
+        if required then
           step (← ret (← mkAppM ``Array.getInternal values))
         else
           step (← ret (← mkAppM ``arrayRead? values))
-    if primitive name || (← getEnv).isConstructor name then
+    if CostModel.unitCostPrimitive name || CostModel.unitCostArrayOperation name ||
+        (← getEnv).isConstructor name then
       return ← arguments ctx fn args fun args => do step (← ret (mkAppN fn args))
     -- Match canonical instances syntactically: normalizing an arbitrary instance
     -- could execute (and thereby erase) work before we have accounted for it.
@@ -876,7 +839,7 @@ elab "#instrument " source:ident " as " target:ident : command => do
     if isWF then
       liftTermElabM <| instrumentWF sourceName targetName
       let theoremName := targetName.appendAfter "_value"
-      modifyEnv fun env => registry.addEntry env { source := sourceName, timed := targetName, valueTheorem := theoremName }
+      modifyEnv fun env => Registry.register env sourceName targetName theoremName
       logInfo m!"Instrumented `{sourceName}` as `{targetName}`; value theorem: `{theoremName}`"
       return
     let (ty, body, params, recPos?, levels, unfolded) ← liftTermElabM do
@@ -915,10 +878,10 @@ elab "#instrument " source:ident " as " target:ident : command => do
           let timedType ← mkForallFVars xs (← mkAppM ``TimeM #[result])
           withLocalDeclD target.getId timedType fun self => do
             let unfolded ← IO.mkRef ({} : NameSet)
-            -- The approved log2 model already includes function entry. Do not
-            -- unfold its internal recursor or add another entry tick.
+            -- Do not unfold `Nat.log2`'s internal recursor; model its source declaration
+            -- as the same one-tick primitive application used at call sites.
             let translated ← if sourceName == ``Nat.log2 then
-                mkAppM ``natLog2 xs
+                step (← ret (mkAppN (mkConst ``Nat.log2) xs))
               else step (← translate { source := sourceName, self, unfolded }
                 (← applyParameters body xs))
             let translated ← mkLambdaFVars xs translated
@@ -950,8 +913,7 @@ elab "#instrument " source:ident " as " target:ident : command => do
           let originalStx ← printing (PrettyPrinter.delab original)
           let src ← `(Lean.Parser.Tactic.simpLemma| $(mkIdent sourceName):term)
           let dst ← `(Lean.Parser.Tactic.simpLemma| $(mkIdent targetName):term)
-          let helperNames := (registry.getState (← getEnv)).sources.toArray.map (fun (_, e) => e.valueTheorem)
-            ++ unfolded
+          let helperNames := Registry.valueTheorems (← getEnv) ++ unfolded
           let helpers ← helperNames.mapM fun name =>
             `(Lean.Parser.Tactic.simpLemma| $(mkIdent name):term)
           let proofStx ← if recPos?.isSome then
@@ -988,10 +950,16 @@ elab "#instrument " source:ident " as " target:ident : command => do
       checkComputable targetName
       checkAxioms targetName
       checkAxioms theoremName
-    modifyEnv fun env => registry.addEntry env { source := sourceName, timed := targetName, valueTheorem := theoremName }
+    modifyEnv fun env => Registry.register env sourceName targetName theoremName
     logInfo m!"Instrumented `{sourceName}` as `{targetName}`; value theorem: `{theoremName}`"
   catch ex =>
     set saved
     throw ex
 
 end RealQuick.Instrumentation
+
+
+def halving (n : Nat) : Nat :=
+  if h : n = 0 then 0 else halving (n / 2) + 1
+termination_by n
+decreasing_by omega
