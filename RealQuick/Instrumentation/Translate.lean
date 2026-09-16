@@ -202,28 +202,37 @@ private partial def wfResultType (ctx : Ctx) (ty : Expr) : MetaM Expr := do
     mkAppM ``TimeM #[ty]
 
 mutual
+  /-- let x : type := value; body -/
+  partial def translateLet (ctx : Ctx) (name : Name) (type value body : Expr) : MetaM Expr := do
+    if (← isProp type) || (← isType value) then
+      -- Proposition/Type has no runtime cost
+      translate ctx (body.instantiate1 value)
+    else
+      -- Otherwise, `value` is instrumented
+      let value_inst ← translate ctx value
+      sequenceWith ctx value_inst (fun value =>
+        withLetDecl name type value fun x => do
+          let body_inst ← translate ctx (body.instantiate1 x)
+          mkLetFVars #[x] body_inst)
+
+  partial def translateProj (ctx : Ctx) (name : Name) (index : Nat) (value : Expr) : MetaM Expr := do
+    let e := .proj name index value
+    firstOrderResult (← inferType e)
+    sequenceWith ctx (← translate ctx value) fun value => do
+      if name == ``Array then
+        let size ← mkAppM ``Array.size #[value]
+        mkAppM ``charge #[← mkAppM ``Nat.succ #[size], .proj name index value]
+      else
+        step (← ret (.proj name index value))
+
   partial def translate (ctx : Ctx) (e : Expr) : MetaM Expr := do
     let e := e.consumeMData
     match e with
     | .fvar _ | .lit _ =>
       firstOrderResult (← inferType e)
       ret e
-    | .letE n ty val body _ =>
-      if (← isProp ty) || (← isType val) then
-        -- Only erased bindings may be substituted without accounting for evaluation.
-        translate ctx (body.instantiate1 val)
-      else
-        sequenceWith ctx (← translate ctx val) fun val =>
-          withLetDecl n ty val fun x => do
-            let body ← translate ctx (body.instantiate1 x)
-            mkLetFVars #[x] body
-    | .proj name idx value =>
-      firstOrderResult (← inferType e)
-      sequenceWith ctx (← translate ctx value) fun value => do
-        if name == ``Array then
-          let size ← mkAppM ``Array.size #[value]
-          mkAppM ``charge #[← mkAppM ``Nat.succ #[size], .proj name idx value]
-        else step (← ret (.proj name idx value))
+    | .letE name type value body _ => translateLet ctx name type value body
+    | .proj name index value => translateProj ctx name index value
     | .app .. | .const .. => translateApp ctx e
     | _ => throwError "unsupported executable expression in instrumentation:{indentExpr e}"
 
