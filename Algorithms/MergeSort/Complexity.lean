@@ -11,8 +11,7 @@ def Bound (n : Nat) := (n + 1) * (Nat.log2 (n + 1))
 
 abbrev Algorithm (α β : Type) := α → TimeM β
 
-def complexity :=
-  Asymptotic mergeSort_timed
-    .some (fun n => (n + 1) * (Nat.log2 (n + 1))
+def complexity : Prop :=
+  Asymptotic mergeSort_timed (.some Bound)
 
 end Algorithms.MergeSort.Complexity
