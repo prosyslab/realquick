@@ -24,6 +24,11 @@ private initialize extension : SimplePersistentEnvExtension (Name × Entry) Regi
 def timedForSource? (env : Environment) (source : Name) : Option Name :=
   (extension.getState env).find? source |>.map (·.timed)
 
+/-- Find the pure source declaration registered for an instrumented declaration. -/
+def sourceForTimed? (env : Environment) (timed : Name) : Option Name :=
+  (extension.getState env).toList.findSome? fun (source, entry) =>
+    if entry.timed == timed then some source else none
+
 def valueTheorems (env : Environment) : Array Name :=
   (extension.getState env).toArray.map (fun (_, entry) => entry.valueTheorem)
 
