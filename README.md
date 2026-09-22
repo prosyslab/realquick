@@ -10,7 +10,7 @@ really (that is mathematically proven) quick (performant).
 To show a program is fast, we define a cost model,
 similar to the technique in time complexity analysis.
 
-In our cost model, a program has an additional tick state.
+In our cost model, a program has a tick state additional to the original expression.
 A tick is a natural number (`Nat` in Lean),
 and it starts from zero at the beginning of the program execution.
 Then, each primitive operation (arithmetic operation, comparison, etc.)
@@ -32,7 +32,8 @@ Refer the following code and paper:
 ## Instrumentation
 
 Performance proofs, including time complexity analysis, are dependent on what costs are being measured:
-Comparisons? Arithmetic Operations? Memory Read and Writes? Each person can decide whatever they want.
+It can be comparisons, arithmetic operations, memory read and writes.
+Different persons can measure different costs.
 This can worsen the trustworthiness of each proof.
 To truly believe the proof is legitimate, we need to inspect how the code is written
 and what costs are measured.
@@ -40,10 +41,11 @@ and what costs are measured.
 To alleviate this burden, we offer an instrumentation tool
 that automatically converts a function into a 'timed' function.
 The instrumentation ensures that the timed function to increase
-the tick for every comparison, arithmetic operation, and memory operation.
+the tick for every comparison, arithmetic operation, memory operation, etc.
 
 If you find this tool limited for the program of your interest,
 you can send a PR to improve the instrumentation.
+See more at [./CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ### Example
 
@@ -66,6 +68,7 @@ Here, `#instrument` generates the followings:
 
 ## Target Programs
 
-We set here target programs for performance analysis.
-1. **algorithms and data structures**: this is the primary focus at the moment,
-2. **real-world programs**: how do we ensure that an optimized program is really optimized? this is the next goal.
+We collect programs of **algorithms and data structures**.
+Please send a PR of the implementation and its correctness and time complexity theorems.
+See more at [./CONTRIBUTING.md](./CONTRIBUTING.md).
+
