@@ -88,6 +88,11 @@ theorem value_seq (x : TimeM α) (k : α → TimeM β) :
 theorem fst_step (x : TimeM α) : (step x).1 = x.1 :=
   TimeM.value_step x
 
+/-- Normalize a generated `step` whose payload was re-elaborated as the
+underlying product representation of `TimeM`. -/
+@[simp]
+theorem fst_step_prod (x : α × Nat) : (step x).1 = x.1 := rfl
+
 @[simp]
 theorem fst_seq (x : TimeM α) (k : α → TimeM β) :
     (seq x k).1 = (k x.1).1 := rfl
