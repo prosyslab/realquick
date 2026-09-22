@@ -17,21 +17,6 @@ For well-founded recursion, `f_eq_def` is also generated.
 
 This module follows the fail-fast policy. If the instrumentation fails,
 it should abort, not silently producing zero-cost function.
-
-This initial, fail-closed frontend supports nondependent first-order code in `Type`,
-structural recursion on direct nonindexed inductives (including Nat/List/trees),
-structures/projections, Nat/Int/Bool primitives,
-and selected array operations, with `Nat.log2` treated as a unit-cost primitive.
-Conditionals require canonical Bool or Nat/Int comparison decision procedures.
-Dependent conditionals, higher-order iteration,
-and general well-founded recursion remain unsupported.
-
-The `Type` restriction follows the existing `TimeM.step`/`TimeM.value` API; this
-module does not change that API. Value preservation is kernel checked (the generated
-statement uses the definitionally equal `.1` projection). Cost adequacy still trusts
-this translator, Lean's elaboration machinery, and the primitive policy below.
-nStrict gating of the legacy `#analyze` command and a formal cost-adequacy theorem are
-separate milestones, not provided by this module.
 -/
 
 open Lean Meta Elab Command Compiler
