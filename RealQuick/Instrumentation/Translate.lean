@@ -11,8 +11,8 @@ open RealQuick.TimeM
 
 namespace RealQuick.Instrumentation
 
-def ret (e : Expr) : MetaM Expr := mkAppM ``TimeM.done #[e]
-def step (e : Expr) : MetaM Expr := mkAppM ``TimeM.step #[e]
+def mkRet (e : Expr) : MetaM Expr := mkAppM ``TimeM.done #[e]
+def mkStep (e : Expr) : MetaM Expr := mkAppM ``TimeM.step #[e]
 
 structure FnAppView where
   expr: Expr
@@ -223,14 +223,14 @@ mutual
         let size ← mkAppM ``Array.size #[value]
         mkAppM ``charge #[← mkAppM ``Nat.succ #[size], .proj name index value]
       else
-        step (← ret (.proj name index value))
+        mkStep (← mkRet (.proj name index value))
 
   partial def translate (ctx : Ctx) (e : Expr) : MetaM Expr := do
     let e := e.consumeMData
     match e with
     | .fvar _ | .lit _ =>
       firstOrderResult (← inferType e)
-      ret e
+      mkRet e
     | .letE name type value body _ => translateLet ctx name type value body
     | .proj name index value => translateProj ctx name index value
     | .app .. | .const .. => translateApp ctx e
@@ -292,7 +292,7 @@ mutual
         mkLambdaFVars xs (← translate ctx body)
       let rec discrs (i : Nat) (out : Array Expr) : MetaM Expr := do
         if i == matcher.discrs.size then
-          return ← step ({ matcher with motive, alts, discrs := out }.toExpr)
+          return ← mkStep ({ matcher with motive, alts, discrs := out }.toExpr)
         let discr := matcher.discrs[i]!
         let ty ← whnf (← inferType discr)
         unless (← supportedInductive ty) || (← passesDiscriminant matcher i) do
@@ -310,7 +310,7 @@ mutual
         let no ← withLocalDeclD `condition (mkNot prop) fun h => do
           let originalProof ← wfProve ctx (mkNot args[1]!)
           mkLambdaFVars #[h] (← translate ctx (← applyParameters args[4]! #[originalProof]))
-        step (← mkAppOptM ``dite #[some (← mkAppM ``TimeM #[args[0]!]), some prop, none, some yes, some no])
+        mkStep (← mkAppOptM ``dite #[some (← mkAppM ``TimeM #[args[0]!]), some prop, none, some yes, some no])
     if name == ``ite then
       unless args.size == 5 do throwError "malformed conditional"
       -- Account for executable decision procedures, not the erased proposition itself.
@@ -320,7 +320,7 @@ mutual
         let no ← translate ctx args[4]!
         -- Bool elimination avoids re-synthesizing a potentially hostile Decidable
         -- instance when the generated expression is delaborated and elaborated.
-        step (← mkAppM ``cond #[b, yes, no])
+        mkStep (← mkAppM ``cond #[b, yes, no])
     -- Allocation/conversion is linear. Push conservatively includes reallocation;
     -- writes/pop above are abstract RAM primitives under exclusive ownership.
     if let some measure := CostModel.linearArrayMeasure? name then
@@ -343,21 +343,21 @@ mutual
       -- The validity predicate is erased; the instance has just been checked.
       return ← arguments ctx (mkAppN fn (args.extract 0 5)) (args.extract 5 args.size) fun values => do
         if required then
-          step (← ret (← mkAppM ``Array.getInternal values))
+          mkStep (← mkRet (← mkAppM ``Array.getInternal values))
         else
-          step (← ret (← mkAppM ``arrayRead? values))
+          mkStep (← mkRet (← mkAppM ``arrayRead? values))
     if CostModel.unitCostPrimitive name || CostModel.unitCostArrayOperation name ||
         (← getEnv).isConstructor name then
-      return ← arguments ctx fn args fun args => do step (← ret (mkAppN fn args))
+      return ← arguments ctx fn args fun args => do mkStep (← mkRet (mkAppN fn args))
     -- Match canonical instances syntactically: normalizing an arbitrary instance
     -- could execute (and thereby erase) work before we have accounted for it.
     if name == ``OfNat.ofNat then
       unless args.size == 3 && args[1]!.isRawNatLit do
         throwError "only canonical Nat/Int literals are supported"
       if args[0]!.isConstOf ``Nat && args[2]! == mkApp (mkConst ``instOfNatNat) args[1]! then
-        return ← ret args[1]!
+        return ← mkRet args[1]!
       if args[0]!.isConstOf ``Int && args[2]! == mkApp (mkConst ``instOfNat) args[1]! then
-        return ← ret (mkApp (mkConst ``Int.ofNat) args[1]!)
+        return ← mkRet (mkApp (mkConst ``Int.ofNat) args[1]!)
       throwError "only canonical Nat/Int literals are supported"
     if name == ``BEq.beq then
       unless args.size == 4 do throwError "malformed equality test"
@@ -369,7 +369,7 @@ mutual
       if isNat then
         return ← translate ctx (mkAppN (mkConst ``Nat.beq) (args.extract 2 4))
       return ← arguments ctx (mkAppN fn (args.extract 0 2)) (args.extract 2 4) fun values => do
-        step (← ret (← mkAppM ``intEq values))
+        mkStep (← mkRet (← mkAppM ``intEq values))
     if name == ``Neg.neg then
       unless args.size == 3 && args[0]!.isConstOf ``Int && args[1]!.isConstOf ``Int.instNegInt do
         throwError "only canonical Int negation is supported"
@@ -398,7 +398,7 @@ mutual
         unless args.size == projection.numParams + 1 do
           throwError "partially applied or functional projections are unsupported"
         return ← arguments ctx fn args fun values => do
-          step (← ret (mkAppN fn values))
+          mkStep (← mkRet (mkAppN fn values))
     if ctx.active.contains name then throwError "recursive helper `{name}` must be instrumented first"
     if ← isRecursiveDefinition name then
       throwError "recursive helper `{name}` must be instrumented first with #instrument"
@@ -410,7 +410,7 @@ mutual
     ctx.unfolded.modify (·.insert name)
     -- Evaluate arguments once before unfolding a transparent first-order helper.
     arguments ctx fn args fun values => do
-      step (← translate { ctx with active := name :: ctx.active }
+      mkStep (← translate { ctx with active := name :: ctx.active }
         (← applyParameters (info.value.instantiateLevelParams info.levelParams levels) values))
 
   /-- Only the equation compiler's argument packing is free. User computations in
@@ -421,7 +421,7 @@ mutual
     let args := (FnAppView.fromExpr e).args
     sequenceWith ctx (← translate ctx args[2]!) fun first => do
       sequenceWith ctx (← translatePacked ctx args[3]! (arity - 1)) fun rest =>
-        ret (mkAppN e.getAppFn #[args[0]!, args[1]!, first, rest])
+        mkRet (mkAppN e.getAppFn #[args[0]!, args[1]!, first, rest])
 
   /-- Transform matcher binders introduced by the well-founded equation compiler. -/
   private partial def translateWFLambda (ctx : Ctx) (e : Expr) : MetaM Expr := do
@@ -467,7 +467,7 @@ mutual
               | throwError "unsupported well-founded matcher argument:{indentExpr arg}"
             pure timed
           result := mkApp result arg
-        if packing then return result else return ← step result
+        if packing then return result else return ← mkStep result
       let discr := matcher.discrs[i]!
       let ty ← whnf (← inferType discr)
       unless packing || (← supportedInductive ty) || (← passesDiscriminant matcher i) do
@@ -502,7 +502,7 @@ mutual
           let test := if eq then (if isNat then ``natEq else ``intEq)
             else if le then (if isNat then ``natLe else ``intLe)
             else (if isNat then ``natLt else ``intLt)
-          step (← ret (mkAppN (mkConst test) #[lhs, rhs]))
+          mkStep (← mkRet (mkAppN (mkConst test) #[lhs, rhs]))
     -- The Bool coercion also requires its canonical decision procedure.
     unless prop.isAppOfArity ``Eq 3 && prop.getAppArgs[0]!.isConstOf ``Bool &&
         prop.getAppArgs[2]!.isConstOf ``Bool.true do
