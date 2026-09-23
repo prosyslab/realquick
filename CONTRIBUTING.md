@@ -32,3 +32,27 @@ The instrumentation feature is highly experimental. However, the feature should 
    For example, for a function `f`, this should generate `f_timed_value : ∀ args, TimeM.value (f_timed args) = f args`.
    Here, `f_timed` is the instrumented function, and
    `TimeM.value` extracts the computed value from the instrumented function.
+
+## Recommended List of Algorithms and Data Structures
+
+- [ ] [BinarySearch](https://en.wikipedia.org/wiki/Binary_search)
+- [ ] [Heap](https://en.wikipedia.org/wiki/Heap_(data_structure))
+- [ ] [UnionFind](https://en.wikipedia.org/wiki/Disjoint-set_data_structure)
+- [ ] [RBTree](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree)
+- [ ] [MaxSubarray](https://en.wikipedia.org/wiki/Maximum_subarray_problem)
+- [ ] [ModExp](https://en.wikipedia.org/wiki/Modular_exponentiation#Right-to-left_binary_method)
+- [ ] [KMP](https://en.wikipedia.org/wiki/Knuth%E2%80%93Morris%E2%80%93Pratt_algorithm)
+- [ ] [DFS](https://en.wikipedia.org/wiki/Depth-first_search)
+- [ ] [BFS](https://en.wikipedia.org/wiki/Breadth-first_search)
+- [ ] [Dijkstra](https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm)
+- [ ] [Kruskal](https://en.wikipedia.org/wiki/Kruskal%27s_algorithm)
+- [ ] [TopoSort](https://en.wikipedia.org/wiki/Topological_sorting)
+- [ ] [ConvexHull](https://en.wikipedia.org/wiki/Convex_hull_algorithms)
+- [ ] [FloydWarshall](https://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm)
+- [ ] [MaxFlow](https://en.wikipedia.org/wiki/Maximum_flow_problem)
+- [ ] [RodCutting](https://go.algorithmexamples.com/web/dynamic-programming/rod-cutting.html)
+- [ ] [Select](https://en.wikipedia.org/wiki/Selection_algorithm)
+- [ ] [ActivitySelection](https://en.wikipedia.org/wiki/Activity_selection_problem)
+- [ ] [LCS](https://en.wikipedia.org/wiki/Longest_common_subsequence)
+- [ ] [MatrixChain](https://en.wikipedia.org/wiki/Matrix_chain_multiplication)
+
