@@ -50,16 +50,16 @@ theorem takeRun_head (x : Nat) (xs : List Nat) :
       simpa [takeRun] using ih
     · simp [takeRun, h, Ne.symm h]
 
-/-- Encode consecutive equal values as positive `(count, value)` runs. -/
-def encode : List Nat → List (Nat × Nat)
+/-- Encode consecutive equal values as runs. -/
+def encode : List Nat → List Run
   | [] => []
   | x :: xs =>
-    match h : takeRun x xs with
-    | (count, rest) => (count + 1, x) :: encode rest
+    match _h : takeRun x xs with
+    | (count, rest) => ⟨count + 1, x, Nat.succ_pos count⟩ :: encode rest
 termination_by xs => xs.length
 decreasing_by
   have hlen := takeRun_length x xs
-  rw [h] at hlen
+  rw [_h] at hlen
   simp only [List.length_cons] at hlen ⊢
   omega
 
@@ -67,28 +67,24 @@ decreasing_by
 
 /-- The first run carries the first input value. -/
 theorem encode_head (xs : List Nat) :
-    (encode xs).head?.map Prod.snd = xs.head? := by
+    (encode xs).head?.map Run.value = xs.head? := by
   cases xs with
   | nil => simp [encode]
   | cons x xs => simp [encode]
 
-/-- The encoder is lossless and produces canonical runs. -/
+/-- The encoder is lossless and never repeats a value in neighboring runs. -/
 theorem encode_correct : Correct encode := by
   intro xs
   fun_induction encode xs with
-  | case1 => simp [decode, Canonical, PositiveRuns, AdjacentDistinct]
+  | case1 => simp [decode, AdjacentDistinct]
   | case2 x xs count rest h ih =>
-    rcases ih with ⟨hdecode, hpositive, hadjacent⟩
+    rcases ih with ⟨hdecode, hadjacent⟩
     have happend := takeRun_append x xs
     have hhead := takeRun_head x xs
     have hfirst := encode_head rest
     rw [h] at happend hhead
-    refine ⟨?_, ?_, ?_⟩
+    refine ⟨?_, ?_⟩
     · simp [decode, hdecode, List.replicate_succ, happend]
-    · intro run hrun
-      rcases List.mem_cons.mp hrun with rfl | hrest
-      · simp
-      · exact hpositive run hrest
     · cases hrest : encode rest with
       | nil => trivial
       | cons next runs =>
