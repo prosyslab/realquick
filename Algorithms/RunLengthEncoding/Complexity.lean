@@ -1,9 +1,9 @@
-import RealQuick.Complexity
+import VeriQuick.Complexity
 import Algorithms.RunLengthEncoding.Impl
 
-open RealQuick.TimeM
-open RealQuick.Instrumentation (natEq)
-open RealQuick.Complexity
+open VeriQuick.TimeM
+open VeriQuick.Instrumentation (natEq)
+open VeriQuick.Complexity
 open Algorithms.RunLengthEncoding.Impl
 
 namespace Algorithms.RunLengthEncoding.Complexity
@@ -37,7 +37,7 @@ theorem encode_timed_step (x : Nat) (xs : List Nat) :
       (takeRun_timed x xs).cost + (encode_timed (takeRun x xs).2).cost + 6 := by
   rw [encode_timed_eq_def]
   have hcert (l : List Nat) : (encode_timed_certified l).1 = encode_timed l := rfl
-  simp [RealQuick.Instrumentation.WF.seqEq, TimeM.step, TimeM.done, TimeM.cost, bind,
+  simp [VeriQuick.Instrumentation.WF.seqEq, TimeM.step, TimeM.done, TimeM.cost, bind,
     hcert, takeRun_timed_value]
   omega
 

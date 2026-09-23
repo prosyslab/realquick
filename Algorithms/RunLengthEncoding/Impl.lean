@@ -1,4 +1,4 @@
-import RealQuick.Instrumentation
+import VeriQuick.Instrumentation
 import Algorithms.RunLengthEncoding.Correctness
 
 open Algorithms.RunLengthEncoding.Correctness
