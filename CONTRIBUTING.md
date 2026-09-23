@@ -35,7 +35,7 @@ The instrumentation feature is highly experimental. However, the feature should 
 
 ## Recommended List of Algorithms and Data Structures
 
-- [ ] [BinarySearch](https://en.wikipedia.org/wiki/Binary_search)
+- [x] [BinarySearch](https://en.wikipedia.org/wiki/Binary_search) - PR [#2](https://github.com/prosyslab/veriquick/pull/2)
 - [ ] [Heap](https://en.wikipedia.org/wiki/Heap_(data_structure))
 - [ ] [UnionFind](https://en.wikipedia.org/wiki/Disjoint-set_data_structure)
 - [ ] [RBTree](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree)
