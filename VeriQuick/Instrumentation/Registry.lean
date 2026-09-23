@@ -2,7 +2,7 @@ import Lean
 
 open Lean
 
-namespace RealQuick.Instrumentation.Registry
+namespace VeriQuick.Instrumentation.Registry
 
 private structure Entry where
   timed : Name
@@ -35,4 +35,4 @@ def valueTheorems (env : Environment) : Array Name :=
 def register (env : Environment) (source timed valueTheorem : Name) : Environment :=
   extension.addEntry env (source, { timed, valueTheorem })
 
-end RealQuick.Instrumentation.Registry
+end VeriQuick.Instrumentation.Registry

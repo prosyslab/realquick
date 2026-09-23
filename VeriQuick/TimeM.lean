@@ -1,4 +1,4 @@
-namespace RealQuick.TimeM
+namespace VeriQuick.TimeM
 
 /-- A computation augmented with a `time` variable, -/
 def TimeM (α : Type u) := α × Nat
@@ -112,4 +112,4 @@ abbrev CostBound := Nat → Nat
 def Meets (bound : CostBound) (obligation: (Nat → Nat) → Prop) : Prop :=
   obligation bound
 
-end RealQuick.TimeM 
+end VeriQuick.TimeM 

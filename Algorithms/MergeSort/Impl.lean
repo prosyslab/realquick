@@ -1,12 +1,12 @@
-import RealQuick.TimeM
-import RealQuick.Instrumentation
+import VeriQuick.TimeM
+import VeriQuick.Instrumentation
 import Mathlib.Data.Nat.Log
 import Mathlib.Tactic.Ring
 
 import Algorithms.MergeSort.Correctness
 open Algorithms.MergeSort.Correctness
 
-open RealQuick.TimeM
+open VeriQuick.TimeM
 
 namespace Algorithms.MergeSort.Impl
 
@@ -274,15 +274,15 @@ theorem merge_timed_linear (xs ys : List Int) :
     omega
   | case3 x xs y ys h ih =>
     rw [merge_timed_eq_def]
-    simp [RealQuick.Instrumentation.intLe, decide_eq_true h] -- TODO: clean up
-    simp [RealQuick.Instrumentation.WF.seqEq, TimeM.step, bind]
+    simp [VeriQuick.Instrumentation.intLe, decide_eq_true h] -- TODO: clean up
+    simp [VeriQuick.Instrumentation.WF.seqEq, TimeM.step, bind]
     simp only [List.length_cons] at ih ⊢
     dsimp [merge_timed, TimeM.cost] at ih
     omega
   | case4 x xs y ys h ih =>
     rw [merge_timed_eq_def]
-    simp [RealQuick.Instrumentation.intLe, decide_eq_false h]
-    simp [RealQuick.Instrumentation.WF.seqEq, TimeM.step, bind]
+    simp [VeriQuick.Instrumentation.intLe, decide_eq_false h]
+    simp [VeriQuick.Instrumentation.WF.seqEq, TimeM.step, bind]
     simp only [List.length_cons] at ih ⊢
     dsimp [merge_timed, TimeM.cost] at ih
     omega
@@ -301,7 +301,7 @@ theorem mergeSort_timed_step (x y : Int) (xs : List Int) (a b : List Int)
     (merge_timed (mergeSort a) (mergeSort b)).cost + 5 := by
   rw [mergeSort_timed_eq_def]
   have hcert (l : List Int) : (mergeSort_timed_certified l).1 = mergeSort_timed l := rfl
-  simp [RealQuick.Instrumentation.WF.seqEq, TimeM.step, TimeM.done, bind, hcert ?_]
+  simp [VeriQuick.Instrumentation.WF.seqEq, TimeM.step, TimeM.done, bind, hcert ?_]
   -- TODO: tidier way to prove this ...
   have hsplit_val : (split_timed (x :: y :: xs)).fst = (a, b) := by
     simp [split_timed_value, h]  

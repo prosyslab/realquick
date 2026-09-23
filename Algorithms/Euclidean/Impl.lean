@@ -1,10 +1,10 @@
-import RealQuick.TimeM
-import RealQuick.Instrumentation
+import VeriQuick.TimeM
+import VeriQuick.Instrumentation
 
 import Algorithms.Euclidean.Correctness
 open Algorithms.Euclidean.Correctness
 
-open RealQuick.TimeM
+open VeriQuick.TimeM
 
 namespace Algorithms.Euclidean.Impl
 
@@ -48,7 +48,7 @@ theorem gcd_timed_step (a b : Nat) (hb : b ≠ 0) :
     (gcd_timed a b).cost = (gcd_timed b (a % b)).cost + 4 := by
   rw [gcd_timed_eq_def]
   dsimp [TimeM.cost, TimeM.step, TimeM.tick, TimeM.done,
-    RealQuick.Instrumentation.WF.seqEq, RealQuick.Instrumentation.natEq,
+    VeriQuick.Instrumentation.WF.seqEq, VeriQuick.Instrumentation.natEq,
     Bind.bind, Pure.pure, instMonadTimeM]
   simp only [hb, decide_false, Bool.false_eq_true, ↓reduceDIte]
   change 1 + (1 + (gcd_timed b (a % b)).cost + 1) + 1 = (gcd_timed b (a % b)).cost + 4

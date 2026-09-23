@@ -1,8 +1,8 @@
-import RealQuick.TimeM
+import VeriQuick.TimeM
 
-open RealQuick.TimeM
+open VeriQuick.TimeM
 
-namespace RealQuick.Complexity
+namespace VeriQuick.Complexity
 
 class Size (α : Type) where
   size : α → Nat
@@ -33,4 +33,4 @@ def Asymptotic {α β : Type} [Size α]
      let n := size x
      n₀ ≤ n → (impl x).cost ≤ c * (bound n)
 
-end RealQuick.Complexity
+end VeriQuick.Complexity

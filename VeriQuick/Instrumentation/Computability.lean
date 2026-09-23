@@ -1,13 +1,13 @@
 import Lean
 import Lean.Compiler.LCNF.ToDecl
 
-import RealQuick.TimeM
+import VeriQuick.TimeM
 
 open Lean
 open Lean Meta Elab Command Compiler
-open RealQuick.TimeM
+open VeriQuick.TimeM
 
-namespace RealQuick.Instrumentation
+namespace VeriQuick.Instrumentation
 
 private partial def checkExecutable (name : Name) (redirects : NameSet := {}) :
     StateT NameSet MetaM Unit := do
@@ -72,4 +72,4 @@ def checkAxioms (name : Name) : CoreM Unit := do
     unless [``propext, ``Quot.sound, ``Classical.choice].contains axiomName do
       throwError "unapproved axiom `{axiomName}` in `{name}`"
 
-end RealQuick.Instrumentation
+end VeriQuick.Instrumentation

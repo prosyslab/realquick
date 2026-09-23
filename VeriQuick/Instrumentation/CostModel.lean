@@ -1,9 +1,9 @@
-import RealQuick.TimeM
+import VeriQuick.TimeM
 
 open Lean
-open RealQuick.TimeM
+open VeriQuick.TimeM
 
-namespace RealQuick.Instrumentation
+namespace VeriQuick.Instrumentation
 
 variable {α β : Type}
 
@@ -46,4 +46,4 @@ def linearArrayMeasure? (name : Name) : Option LinearArrayMeasure :=
     none
 
 end CostModel
-end RealQuick.Instrumentation
+end VeriQuick.Instrumentation

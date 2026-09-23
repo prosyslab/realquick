@@ -1,6 +1,6 @@
-import RealQuick.TimeM
+import VeriQuick.TimeM
 
-open RealQuick.TimeM
+open VeriQuick.TimeM
 
 namespace Algorithms.MergeSort.Correctness
 

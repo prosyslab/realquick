@@ -1,8 +1,8 @@
-import RealQuick.Complexity
+import VeriQuick.Complexity
 import Algorithms.MergeSort.Impl
 
-open RealQuick.TimeM
-open RealQuick.Complexity
+open VeriQuick.TimeM
+open VeriQuick.Complexity
 open Algorithms.MergeSort.Impl
 
 namespace Algorithms.MergeSort.Complexity

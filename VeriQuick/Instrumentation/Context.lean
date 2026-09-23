@@ -1,14 +1,14 @@
 import Lean
 
-import RealQuick.TimeM
-import RealQuick.Instrumentation.CostModel
+import VeriQuick.TimeM
+import VeriQuick.Instrumentation.CostModel
 
 open Lean
-open RealQuick.TimeM
+open VeriQuick.TimeM
 
-namespace RealQuick.Instrumentation.WF
+namespace VeriQuick.Instrumentation.WF
 
-open RealQuick.TimeM
+open VeriQuick.TimeM
 
 universe u v
 
@@ -25,7 +25,7 @@ theorem fst_certified {f : α → β} {x : α} (c : Certified f x) :
   c.property
 
 /-- Reuse the standard one-tick function-entry charge, with the same universe
-restriction as `RealQuick.TimeM.TimeM.step`. -/
+restriction as `VeriQuick.TimeM.TimeM.step`. -/
 abbrev step {α : Type} (comp : TimeM α) : TimeM α := TimeM.step comp
 
 /-- Sequence a timed computation, giving the continuation its value and a proof
@@ -55,10 +55,10 @@ theorem snd_seqEq (comp : TimeM α) (original : α)
     (h : comp.1 = original) (k : (value : α) → value = original → TimeM β) :
     (seqEq comp original h k).2 = comp.2 + (k comp.1 h).2 := rfl
 
-end RealQuick.Instrumentation.WF
+end VeriQuick.Instrumentation.WF
 
 
-namespace RealQuick.Instrumentation
+namespace VeriQuick.Instrumentation
 
 variable {α : Type}
 
@@ -100,4 +100,4 @@ structure Ctx where
   unfolded : IO.Ref NameSet
   wf? : Option WFCtx := none
 
-end RealQuick.Instrumentation
+end VeriQuick.Instrumentation

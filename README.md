@@ -1,9 +1,6 @@
-# Real Quick Benchmark
+# Verifiable Quick Programs Benchmark
 
-`RealQuick` is a collection of real-quick programs.
-"Real quick" is an informal term meaning "very fast" in American English.
-Here, we presents programs that are
-really (that is mathematically proven) quick (performant).
+`VeriQuick` is a collection of verifiable quick programs.
 
 ## Cost Model
 

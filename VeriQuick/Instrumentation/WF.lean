@@ -1,12 +1,12 @@
 import Lean
-import RealQuick.TimeM
-import RealQuick.Instrumentation.Context
-import RealQuick.Instrumentation.Translate
+import VeriQuick.TimeM
+import VeriQuick.Instrumentation.Context
+import VeriQuick.Instrumentation.Translate
 
 open Lean Meta Elab Command Compiler
-open RealQuick.TimeM
+open VeriQuick.TimeM
 
-namespace RealQuick.Instrumentation.WF
+namespace VeriQuick.Instrumentation.WF
 
 /-- Translate the kernel fixpoint, retaining its relation and erased decrease proofs. -/
 def instrumentWF (sourceName targetName : Name) : MetaM Unit :=
@@ -112,4 +112,4 @@ def instrumentWF (sourceName targetName : Name) : MetaM Unit :=
   checkAxioms targetName
   checkAxioms (targetName.appendAfter "_value")
 
-end RealQuick.Instrumentation.WF
+end VeriQuick.Instrumentation.WF

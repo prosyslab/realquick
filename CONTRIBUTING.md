@@ -3,8 +3,8 @@
 ## Contributions
 
 You can contribute this to collection by either
-1. implementing a program and proving its correctness and its desired time complexity using the API provided at [Instrumentation.lean](./RealQuick/Instrumentation.lean), or
-2. enhance the instrumentation feature at [Instrumentation.lean](./RealQuick/Instrumentation.lean).
+1. implementing a program and proving its correctness and its desired time complexity using the API provided at [Instrumentation.lean](./VeriQuick/Instrumentation.lean), or
+2. enhance the instrumentation feature at [Instrumentation.lean](./VeriQuick/Instrumentation.lean).
 
 Both contributions are highly welcome.
 Any bug reports are also welcome.

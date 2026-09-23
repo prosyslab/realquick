@@ -1,15 +1,15 @@
 import Lean
 
-import RealQuick.TimeM
-import RealQuick.Instrumentation.Registry
-import RealQuick.Instrumentation.CostModel
-import RealQuick.Instrumentation.Computability
-import RealQuick.Instrumentation.Context
+import VeriQuick.TimeM
+import VeriQuick.Instrumentation.Registry
+import VeriQuick.Instrumentation.CostModel
+import VeriQuick.Instrumentation.Computability
+import VeriQuick.Instrumentation.Context
 
 open Lean Meta Elab Command Compiler
-open RealQuick.TimeM
+open VeriQuick.TimeM
 
-namespace RealQuick.Instrumentation
+namespace VeriQuick.Instrumentation
 
 def mkRet (e : Expr) : MetaM Expr := mkAppM ``TimeM.done #[e]
 def mkStep (e : Expr) : MetaM Expr := mkAppM ``TimeM.step #[e]
@@ -514,4 +514,4 @@ mutual
     translate ctx prop.getAppArgs[1]!
 end
 
-end RealQuick.Instrumentation
+end VeriQuick.Instrumentation

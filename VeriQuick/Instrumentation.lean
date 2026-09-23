@@ -1,11 +1,11 @@
 import Lean
-import RealQuick.TimeM
-import RealQuick.Instrumentation.Registry
-import RealQuick.Instrumentation.CostModel
-import RealQuick.Instrumentation.Computability
-import RealQuick.Instrumentation.Context
-import RealQuick.Instrumentation.Translate
-import RealQuick.Instrumentation.WF
+import VeriQuick.TimeM
+import VeriQuick.Instrumentation.Registry
+import VeriQuick.Instrumentation.CostModel
+import VeriQuick.Instrumentation.Computability
+import VeriQuick.Instrumentation.Context
+import VeriQuick.Instrumentation.Translate
+import VeriQuick.Instrumentation.WF
 
 /-!
 # TimeM instrumentation
@@ -19,9 +19,9 @@ it should abort, not silently producing zero-cost function.
 -/
 
 open Lean Meta Elab Command Compiler
-open RealQuick.TimeM
+open VeriQuick.TimeM
 
-namespace RealQuick.Instrumentation
+namespace VeriQuick.Instrumentation
 
 private def printing (m : MetaM α) : MetaM α :=
   withOptions (fun o => o.setBool `pp.all false |>.setBool `pp.explicit false
@@ -158,4 +158,4 @@ elab "#instrument " source:ident " as " target:ident : command => do
     set saved
     throw ex
 
-end RealQuick.Instrumentation
+end VeriQuick.Instrumentation
