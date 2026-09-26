@@ -40,7 +40,7 @@ The instrumentation feature is highly experimental. However, the feature should 
 - [ ] [UnionFind](https://en.wikipedia.org/wiki/Disjoint-set_data_structure)
 - [ ] [RBTree](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree)
 - [ ] [MaxSubarray](https://en.wikipedia.org/wiki/Maximum_subarray_problem)
-- [ ] [ModExp](https://en.wikipedia.org/wiki/Modular_exponentiation#Right-to-left_binary_method)
+- [x] [ModExp](https://en.wikipedia.org/wiki/Modular_exponentiation#Right-to-left_binary_method) - PR [#4](https://github.com/prosyslab/veriquick/pull/4)
 - [ ] [KMP](https://en.wikipedia.org/wiki/Knuth%E2%80%93Morris%E2%80%93Pratt_algorithm)
 - [ ] [DFS](https://en.wikipedia.org/wiki/Depth-first_search)
 - [ ] [BFS](https://en.wikipedia.org/wiki/Breadth-first_search)
