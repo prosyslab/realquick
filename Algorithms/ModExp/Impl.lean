@@ -6,56 +6,59 @@ open Algorithms.ModExp.Correctness
 
 namespace Algorithms.ModExp.Impl
 
-/-- The lowest bit of `e`. If e is odd, 1; otherwise 0. -/
-def lowBit (e : Nat) : Nat := e % 2
+/-- The lowest bit of `exponent`: `1` if `exponent` is odd, `0` otherwise. -/
+def lowBit (exponent : Nat) : Nat := exponent % 2
 
 #instrument lowBit as lowBit_timed
 
-/-- Right-to-left square-and-multiply: consume `e` one bit at a time, starting
-from the lowest, squaring `base` after each bit. -/
-def loop (m acc base e : Nat) : Nat :=
-  if _h : e = 0 then
+/-- Right-to-left square-and-multiply: consume `exponent` one bit at a time,
+starting from the lowest, squaring `base` after each bit. -/
+def loop (modulus acc base exponent : Nat) : Nat :=
+  if _h : exponent = 0 then
     -- Base case: Do modulo because we are relying on Lean's `Nat.mod` arithmetic:
-    -- m = 1, e = 0 => acc % 1 = 0
-    acc % m
-  else if lowBit e = 1 then
+    -- modulus = 1, exponent = 0 => acc % 1 = 0
+    acc % modulus
+  else if lowBit exponent = 1 then
     -- Lowest bit set: multiply `acc` by `base`, square `base`, drop the bit.
-    loop m (acc * base % m) (base * base % m) (e / 2)
+    loop modulus (acc * base % modulus) (base * base % modulus) (exponent / 2)
   else
     -- Lowest bit clear: keep `acc`, square `base`, drop the bit.
-    loop m acc (base * base % m) (e / 2)
-termination_by e
+    loop modulus acc (base * base % modulus) (exponent / 2)
+termination_by exponent
 
 #instrument loop as loop_timed
 
-/-- Modular exponentiation `b ^ e % m` by the right-to-left binary method. -/
-def modExp (b e m : Nat) : Nat := loop m 1 (b % m) e
+/-- Modular exponentiation `base ^ exponent % modulus` by the right-to-left
+binary method. -/
+def modExp (base exponent modulus : Nat) : Nat :=
+  loop modulus 1 (base % modulus) exponent
 
 #instrument modExp as modExp_timed
 
-/-- The loop invariant: `loop` returns `acc * base ^ e` modulo `m`. -/
-theorem loop_eq (m acc base e : Nat) :
-    loop m acc base e = acc * base ^ e % m := by
-  fun_induction loop m acc base e with
+/-- The loop invariant: `loop` returns `acc * base ^ exponent` modulo `modulus`. -/
+theorem loop_eq (modulus acc base exponent : Nat) :
+    loop modulus acc base exponent = acc * base ^ exponent % modulus := by
+  fun_induction loop modulus acc base exponent with
   | case1 acc base =>
     simp only [Nat.pow_zero, Nat.mul_one]
-  | case2 acc base e h hodd ih =>
+  | case2 acc base exponent h hodd ih =>
     unfold lowBit at hodd
-    have hpow : base ^ e = base * (base * base) ^ (e / 2) := by
+    have hpow : base ^ exponent = base * (base * base) ^ (exponent / 2) := by
       rw [← Nat.pow_two, ← Nat.pow_mul, ← Nat.pow_succ']
       congr 1
       omega
-    rw [ih, hpow, Nat.mul_mod, Nat.mod_mod, ← Nat.pow_mod, ← Nat.mul_mod, Nat.mul_assoc]
-  | case3 acc base e h heven ih =>
+    rw [ih, hpow, Nat.mul_mod, Nat.mod_mod, ← Nat.pow_mod, ← Nat.mul_mod,
+      Nat.mul_assoc]
+  | case3 acc base exponent h heven ih =>
     unfold lowBit at heven
-    have hpow : base ^ e = (base * base) ^ (e / 2) := by
+    have hpow : base ^ exponent = (base * base) ^ (exponent / 2) := by
       rw [← Nat.pow_two, ← Nat.pow_mul]
       congr 1
       omega
     rw [ih, hpow, Nat.mul_mod, ← Nat.pow_mod, ← Nat.mul_mod]
 
 theorem modExp_correct : Correct modExp := by
-  intro b e m
+  intro base exponent modulus
   rw [modExp, loop_eq, Nat.one_mul, ← Nat.pow_mod]
 
 end Algorithms.ModExp.Impl
